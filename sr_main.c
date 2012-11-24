@@ -18,12 +18,14 @@
 #endif /* _SOLARIS_ */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <sys/types.h>
+#include <time.h>
 
 #ifdef _LINUX_
 #include <getopt.h>
@@ -32,6 +34,7 @@
 #include "sr_dumper.h"
 #include "sr_router.h"
 #include "sr_rt.h"
+#include "sr_nat.h"
 
 extern char* optarg;
 
@@ -64,12 +67,16 @@ int main(int argc, char **argv)
     char *template = NULL;
     unsigned int port = DEFAULT_PORT;
     unsigned int topo = DEFAULT_TOPO;
+    int tcp_estab_timeout = DEFAULT_TCP_ESTABLISHED_TIMEOUT;
+    int tcp_trans_timeout = DEFAULT_TCP_TRANSITORY_TIMEOUT;
+    int icmp_query_timeout = DEFAULT_ICMP_TIMEOUT;
+    bool nat_enabled = false;
     char *logfile = 0;
     struct sr_instance sr;
 
     printf("Using %s\n", VERSION_INFO);
 
-    while ((c = getopt(argc, argv, "hs:v:p:u:t:r:l:T:")) != EOF)
+    while ((c = getopt(argc, argv, "hs:v:p:u:t:r:l:nT:I:E:R:")) != EOF)
     {
         switch (c)
         {
@@ -100,6 +107,22 @@ int main(int argc, char **argv)
                 break;
             case 'T':
                 template = optarg;
+                break;
+            case 'n':
+                nat_enabled = true;
+                fprintf(stderr,"NAT mode enabled\n");
+                break;
+            case 'I':
+                icmp_query_timeout = atoi((char *) optarg);
+                fprintf(stderr,"ICMP query timeout set to: %d\n",icmp_query_timeout);
+                break;
+            case 'E':
+                tcp_estab_timeout = atoi((char *) optarg);
+                fprintf(stderr,"TCP established idle timeout set to: %d\n",tcp_estab_timeout);
+                break;
+            case 'R':
+                tcp_trans_timeout = atoi((char *) optarg);
+                fprintf(stderr,"TCP transitory idle timeout set to: %d\n",tcp_trans_timeout);
                 break;
         } /* switch */
     } /* -- while -- */
@@ -159,9 +182,17 @@ int main(int argc, char **argv)
     /* call router init (for arp subsystem etc.) */
     sr_init(&sr);
 
+    /* initialize nat */
+    if (nat_enabled) {
+        sr_if_t *iface = sr_get_interface(&sr,DEFAULT_EXTERNAL_INTERFACE_NAME);
+        assert (iface != 0);
+        sr_nat_init(&sr.nat,icmp_query_timeout,tcp_estab_timeout,tcp_trans_timeout,iface->ip);
+    }
+
     /* -- whizbang main loop ;-) */
     while( sr_read_from_server(&sr) == 1);
 
+    sr_nat_destroy(&sr.nat);
     sr_destroy_instance(&sr);
 
     return 0;
@@ -178,7 +209,8 @@ static void usage(char* argv0)
     printf("Format: %s [-h] [-v host] [-s server] [-p port] \n",argv0);
     printf("           [-T template_name] [-u username] \n");
     printf("           [-t topo id] [-r routing table] \n");
-    printf("           [-l log file] \n");
+    printf("           [-l log file] [-n] [-I ICMP query timeout]\n");
+    printf("           [-E TCP established timeout] [-R TCP transitory idle timeout]\n");
     printf("   defaults server=%s port=%d host=%s  \n",
             DEFAULT_SERVER, DEFAULT_PORT, DEFAULT_HOST );
 } /* -- usage -- */
