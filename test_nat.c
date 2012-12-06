@@ -19,6 +19,7 @@
 //#include "sr_utils.h"
 #include "sr_arpcache.h"
 #include "sr_if.h"
+#include "sr_nat.h"
 /* Necessary for Compilation */
 
 /* */
@@ -120,6 +121,96 @@ void init_sr(struct sr_instance **sr)
 }
 
 
+void test_mapping(sr_nat_t *nat) {
+
+	fprintf(stderr,"%-70s","Testing NAT mapping...");
+
+	//insert mapping
+	uint32_t ip_int1 = 11;
+	uint32_t ip_dst1= 91;
+	uint16_t aux_int1 = 1111;
+	uint16_t aux_dst1 = 9111;
+	sr_nat_mapping_t *entry = 0;
+	entry = sr_nat_insert_mapping(nat, ip_int1,aux_int1,ip_dst1,aux_dst1,nat_mapping_tcp);
+	uint16_t aux_ext1 = entry->aux_ext;
+
+	//insert mapping
+	uint32_t ip_int2 = 22;
+	uint32_t ip_dst2= 92;
+	uint16_t aux_int2 = 1122;
+	uint16_t aux_dst2 = 9922;
+	entry = 0;
+	entry = sr_nat_insert_mapping(nat, ip_int2,aux_int2,ip_dst2,aux_dst2,nat_mapping_icmp);
+	uint16_t aux_ext2 = entry->aux_ext;
+
+	//insert mapping
+	uint32_t ip_int3 = 33;
+	uint32_t ip_dst3= 93;
+	uint16_t aux_int3 = 1133;
+	uint16_t aux_dst3 = 9933;
+	entry = 0;
+	entry = sr_nat_insert_mapping(nat, ip_int3,aux_int3,ip_dst3,aux_dst3,nat_mapping_tcp);
+	uint16_t aux_ext3 = entry->aux_ext;
+
+	//look up mapping in external and internal ports
+	entry = 0;
+	entry = sr_nat_lookup_external(nat, aux_ext1,nat_mapping_tcp);
+	assert(entry != 0);
+	assert(entry->type == nat_mapping_tcp);
+	assert(entry->ip_int == ip_int1);
+	assert(entry->aux_int == aux_int1);
+	assert(entry->aux_ext == aux_ext1);
+	entry = sr_nat_lookup_internal(nat, ip_int1, aux_int1,nat_mapping_tcp);
+	assert(entry != 0);
+	assert(entry->type == nat_mapping_tcp);
+	assert(entry->ip_int == ip_int1);
+	assert(entry->aux_int == aux_int1);
+	assert(entry->aux_ext == aux_ext1);
+	
+	//look up mapping in external and internal ports
+	entry = 0;
+	entry = sr_nat_lookup_external(nat, aux_ext2,nat_mapping_icmp);
+	assert(entry != 0);
+	assert(entry->type == nat_mapping_icmp);
+	assert(entry->ip_int == ip_int2);
+	assert(entry->aux_int == aux_int2);
+	assert(entry->aux_ext == aux_ext2);
+	entry = sr_nat_lookup_internal(nat, ip_int2, aux_int2,nat_mapping_icmp);
+	assert(entry != 0);
+	assert(entry->type == nat_mapping_icmp);
+	assert(entry->ip_int == ip_int2);
+	assert(entry->aux_int == aux_int2);
+	assert(entry->aux_ext == aux_ext2);
+
+	//look up mapping in external and internal ports
+	entry = 0;
+	entry = sr_nat_lookup_external(nat, aux_ext3,nat_mapping_tcp);
+	assert(entry != 0);
+	assert(entry->type == nat_mapping_tcp);
+	assert(entry->ip_int == ip_int3);
+	assert(entry->aux_int == aux_int3);
+	assert(entry->aux_ext == aux_ext3);
+	entry = sr_nat_lookup_internal(nat, ip_int3, aux_int3,nat_mapping_tcp);
+	assert(entry != 0);
+	assert(entry->type == nat_mapping_tcp);
+	assert(entry->ip_int == ip_int3);
+	assert(entry->aux_int == aux_int3);
+	assert(entry->aux_ext == aux_ext3);
+
+	//lookup entries that shouldn't exist
+	//look up mapping in external and internal ports
+	entry = sr_nat_lookup_external(nat, aux_ext3,nat_mapping_icmp);
+	assert(entry == NULL);
+
+	entry = sr_nat_lookup_external(nat, 74,nat_mapping_icmp);
+	assert(entry == NULL);
+
+	entry = sr_nat_lookup_internal(nat, ip_int1, aux_ext3,nat_mapping_tcp);
+	assert(entry == NULL);
+
+
+	fprintf(stderr,"PASSED\n");
+}
 
 
 
@@ -128,8 +219,30 @@ int main(int argc, char **argv)
 	sentframe = malloc(MAX_FRAME_SIZE);
 	struct sr_instance *sr;
 	init_sr(&sr);
-	sr_nat_init(&sr->nat,10,15,20);
-	
+	sr_nat_init(&sr->nat,10,15,20,99);
+
+	fprintf(stderr,"Testing NAT functionality.\n");
+
+	test_mapping(&sr->nat);
+
 	free(sr);
 	free(sentframe);
+
+	return 1;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

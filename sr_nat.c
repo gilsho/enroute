@@ -35,6 +35,7 @@ int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab
   /* CAREFUL MODIFYING CODE ABOVE THIS LINE! */
 
   nat->mappings = NULL;
+
   /* Initialize any variables here */
 
   nat->ext_ip = ext_ip;
@@ -76,13 +77,13 @@ void *sr_nat_timeout(void *nat_ptr) {  /* Periodic Timout handling */
   struct sr_nat *nat = (struct sr_nat *)nat_ptr;
   while (1) {
     sleep(1.0);
-    pthread_mutex_lock(&(nat->lock));
+    //pthread_mutex_lock(&(nat->lock));
 
     time_t curtime = time(NULL);
 
     /* handle periodic tasks here */
 
-    pthread_mutex_unlock(&(nat->lock));
+    //pthread_mutex_unlock(&(nat->lock));
   }
   return NULL;
 }
@@ -103,8 +104,8 @@ sr_nat_mapping_t *sr_nat_find_external(struct sr_nat *nat,
 struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
     uint16_t aux_ext, sr_nat_mapping_type type ) {
 
-  pthread_mutex_lock(&(nat->lock));
-  sr_nat_mapping_t *copy;
+  //pthread_mutex_lock(&(nat->lock));
+  sr_nat_mapping_t *copy = NULL;
 
   /* handle lookup here, malloc and assign to copy */
   sr_nat_mapping_t *mapping = sr_nat_find_external(nat,aux_ext,type);
@@ -114,10 +115,13 @@ struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
   }
 
   //create new tcp connection if necessary
-  pthread_mutex_unlock(&(nat->lock));
+  //pthread_mutex_unlock(&(nat->lock));
   return copy;
 }
 
+/* Performs a search for the mapping entry and if it exists, returns a 
+   reference to the entry in the linked list. should only be used internally
+   by functions using locks for thread safety */
 sr_nat_mapping_t *sr_nat_find_internal(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type) 
 {
@@ -135,7 +139,7 @@ sr_nat_mapping_t *sr_nat_find_internal(struct sr_nat *nat,
 struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type) {
 
-  pthread_mutex_lock(&(nat->lock));
+  //pthread_mutex_lock(&(nat->lock));
 
   /* handle lookup here, malloc and assign to copy. */
   struct sr_nat_mapping *copy = NULL;
@@ -148,7 +152,7 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
 
   //create new tcp connection if necessary
 
-  pthread_mutex_unlock(&(nat->lock));
+  //pthread_mutex_unlock(&(nat->lock));
   return copy;
 }
 
@@ -177,14 +181,14 @@ uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type)
 }
 
 /* Insert a new mapping into the nat's mapping table.
-   Actually returns a copy to the new mapping, for thread safety.
+   returns a reference to the new mapping, for thread safety.
  */
 
 struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, uint32_t ip_dest, uint16_t aux_dest,
   sr_nat_mapping_type type ) {
 
-  pthread_mutex_lock(&(nat->lock));
+  //pthread_mutex_lock(&(nat->lock));
 
   /* handle insert here, create a mapping, and then return a copy of it */
 
@@ -216,6 +220,6 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   sr_nat_mapping_t *copy = malloc(sizeof(sr_nat_mapping_t));
   memcpy(copy,mapping,sizeof(sr_nat_mapping_t));
 
-  pthread_mutex_unlock(&(nat->lock));
+  //pthread_mutex_unlock(&(nat->lock));
   return copy;
 }
