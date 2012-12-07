@@ -6,12 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "sr_protocol.h"
+#include "sr_router.h"
 
-#include "sr_nat_mapping.c"
-#include "sr_nat_pendsyn.c"
+
+#include "sr_nat_logic.c"
 #include "sr_nat_tcpstate.c"
-#include "sr_nat_mapping.c"
 #include "sr_nat_utils.c"
+
+uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload); //CLEANUP
 
 
 int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
@@ -88,45 +91,13 @@ void *sr_nat_timeout(void *nat_ptr) {  /* Periodic Timout handling */
   return NULL;
 }
 
-
-sr_nat_mapping_t *sr_nat_find_external(struct sr_nat *nat,
-            uint16_t aux_ext, sr_nat_mapping_type type) {
-  for (sr_nat_mapping_t *curmap = nat->mappings; curmap != 0; curmap = curmap->next) {
-    if ((curmap->type == type) && (curmap->aux_ext == aux_ext)) {
-      return curmap;
-    }
-  }
-  return NULL;
-}
-
 /* Get the mapping associated with given external port.
    You must free the returned structure if it is not NULL. */
 struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
     uint16_t aux_ext, sr_nat_mapping_type type ) {
 
-  //pthread_mutex_lock(&(nat->lock));
-  sr_nat_mapping_t *copy = NULL;
-
-  /* handle lookup here, malloc and assign to copy */
-  sr_nat_mapping_t *mapping = sr_nat_find_external(nat,aux_ext,type);
-  if (mapping != NULL) {
-    copy = malloc(sizeof(sr_nat_mapping_t));
-    memcpy(copy,mapping,sizeof(sr_nat_mapping_t));
-  }
-
-  //create new tcp connection if necessary
-  //pthread_mutex_unlock(&(nat->lock));
-  return copy;
-}
-
-/* Performs a search for the mapping entry and if it exists, returns a 
-   reference to the entry in the linked list. should only be used internally
-   by functions using locks for thread safety */
-sr_nat_mapping_t *sr_nat_find_internal(struct sr_nat *nat,
-  uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type) 
-{
   for (sr_nat_mapping_t *curmap = nat->mappings; curmap != 0; curmap = curmap->next) {
-    if ((curmap->type == type) && (curmap->ip_int == ip_int) && (curmap->aux_int == aux_int)) {
+    if ((curmap->type == type) && (curmap->aux_ext == aux_ext)) {
       return curmap;
     }
   }
@@ -141,28 +112,135 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
 
   //pthread_mutex_lock(&(nat->lock));
 
-  /* handle lookup here, malloc and assign to copy. */
-  struct sr_nat_mapping *copy = NULL;
-
-  sr_nat_mapping_t *mapping = sr_nat_find_internal(nat,ip_int,aux_int,type);
-  if (mapping != NULL) {
-    copy = malloc(sizeof(sr_nat_mapping_t));
-    memcpy(copy,mapping,sizeof(sr_nat_mapping_t));
+  for (sr_nat_mapping_t *curmap = nat->mappings; curmap != 0; curmap = curmap->next) {
+    if ((curmap->type == type) && (curmap->ip_int == ip_int) && (curmap->aux_int == aux_int)) {
+      return curmap;
+    }
   }
+  return NULL;
 
-  //create new tcp connection if necessary
-
-  //pthread_mutex_unlock(&(nat->lock));
-  return copy;
 }
 
 
+//assumes everything is in network byte order
+void translate_incoming_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
+{
+
+  assert(iphdr->ip_p == ip_protocol_icmp);
+  assert(map->type == nat_mapping_icmp);
+
+  sr_icmp_hdr_t *icmphdr = (sr_icmp_hdr_t *) extract_ip_payload(iphdr, iplen, NULL);
+  
+  //only translate icmp echo requests and replies
+  if ((icmphdr->icmp_type != icmp_type_echoreq) && (icmphdr->icmp_type != icmp_type_echoreply)) 
+      return;
+
+  sr_icmp_echo_hdr_t *echohdr = (sr_icmp_echo_hdr_t *) icmphdr; 
+
+  //translate destination ip address to private destination of destination host
+  iphdr->ip_dst = htonl(map->ip_int);
+
+  echohdr->icmp_id = htons(map->aux_int);
+  
+  //recompute icmp checksum
+  echohdr->icmp_sum = 0;
+  echohdr->icmp_sum = cksum(echohdr,ICMP_PACKET_SIZE);
+
+  //recompute ip sum (redundant, should be performed by caller)
+  iphdr->ip_sum = 0;
+  iphdr->ip_sum = cksum(iphdr,iplen);
+
+}
+
+//assumes everything is in network byte order
+void translate_outgoing_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
+{
+
+  assert(iphdr->ip_p == ip_protocol_icmp);
+  assert(map->type == nat_mapping_icmp);
+
+   sr_icmp_hdr_t *icmphdr = (sr_icmp_hdr_t *) extract_ip_payload(iphdr, iplen, NULL);
+  
+  //only translate icmp echo requests and replies
+  if ((icmphdr->icmp_type != icmp_type_echoreq) && (icmphdr->icmp_type != icmp_type_echoreply)) 
+      return;
+
+  sr_icmp_echo_hdr_t *echohdr = (sr_icmp_echo_hdr_t *) icmphdr; 
+
+  //translate src ip address to appear as if packet
+  //originated from NAT
+  iphdr->ip_src = htonl(map->ip_ext);
+
+  echohdr->icmp_id = htons(map->aux_ext);
+  
+  //recompute icmp checksum
+  echohdr->icmp_sum = 0;
+  echohdr->icmp_sum = cksum(echohdr,ICMP_PACKET_SIZE);
+
+  //recompute ip sum (redundant, should be performed by caller)
+  iphdr->ip_sum = 0;
+  iphdr->ip_sum = cksum(iphdr,iplen);
+
+}
+
+//assumes everything is in network byte order
+void translate_incoming_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
+{
+
+  assert(iphdr->ip_p == ip_protocol_tcp);
+  assert(map->type == nat_mapping_tcp);
+
+  //translate src ip address to NAT's external ip
+  iphdr->ip_dst = htonl(map->ip_int);
+
+  unsigned int tcplen = 0;
+  sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);
+
+  //translate port
+  tcphdr->th_dport = htons(map->aux_int);
+
+  //compute tcp checksum
+  tcphdr->th_sum = 0;
+  tcphdr->th_sum = tcp_cksum(iphdr,tcphdr,tcplen);
+
+  //compute ip checksum. (redundant, should be performed by caller)
+  iphdr->ip_sum = 0;
+  iphdr->ip_sum = cksum(iphdr,iplen);
+
+}
+
+//assumes everything is in network byte order
+void translate_outgoing_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
+{
+
+  assert(iphdr->ip_p == ip_protocol_tcp);
+  assert(map->type == nat_mapping_tcp);
+
+  //translate src ip address to NAT's external ip
+  iphdr->ip_src = htonl(map->ip_ext);
+
+  unsigned int tcplen = 0;
+  sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);
+
+  //translate port
+  tcphdr->th_sport = htons(map->aux_ext);
+
+  //compute tcp checksum
+  tcphdr->th_sum = 0;
+  tcphdr->th_sum = tcp_cksum(iphdr,tcphdr,tcplen);
+
+  //compute ip checksum. (redundant, should be performed by caller)
+  iphdr->ip_sum = 0;
+  iphdr->ip_sum = cksum(iphdr,iplen);
+
+}
 
 time_t current_time(); //defined in sr_router_utils.c. CLEANUP
 
 
-#define MAX_AUX_VALUE 65355
-#define MIN_AUX_VALUE 1024
+#define MAX_AUX_VALUE 65355   //CLEANUP
+#define MIN_AUX_VALUE 1024    //CLEANUP
+
 uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
 {
   while (true) {
@@ -187,8 +265,6 @@ uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type)
 struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, uint32_t ip_dest, uint16_t aux_dest,
   sr_nat_mapping_type type ) {
-
-  //pthread_mutex_lock(&(nat->lock));
 
   /* handle insert here, create a mapping, and then return a copy of it */
 
@@ -216,10 +292,24 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   mapping->next = nat->mappings;
   nat->mappings = mapping;
 
-  //make a copy
-  sr_nat_mapping_t *copy = malloc(sizeof(sr_nat_mapping_t));
-  memcpy(copy,mapping,sizeof(sr_nat_mapping_t));
+  return mapping;
+}
 
-  //pthread_mutex_unlock(&(nat->lock));
-  return copy;
+
+bool do_nat_logic(struct sr_nat *nat, sr_ip_hdr_t* iphdr, unsigned int iplen, sr_if *iface) {
+
+  pthread_mutex_lock(&(nat->lock));
+
+
+
+
+
+  //recompute checksum to account for changes made
+  iphdr->ip_sum = 0;
+  iphdr->ip_sum = cksum(iphdr,iplen);
+
+  pthread_mutex_unlock(&(nat->lock));
+
+  return true;
+
 }

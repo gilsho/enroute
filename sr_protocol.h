@@ -79,6 +79,37 @@
 #define ICMP_DATA_SIZE 28
 
 
+/* TCP Header structure as per RFC 793
+   obtained from:  http://simplestcodings.blogspot.com/2010/10/tcp-header-format.html */
+struct sr_tcp_hdr {
+ u_short th_sport;  /* source port */
+ u_short th_dport;  /* destination port */
+ uint32_t th_seq;   /* sequence number */
+ uint32_t th_ack;   /* acknowledgement number */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+ u_int th_x2:4,  /* (unused) */
+  th_off:4;  /* data offset */
+#elif __BYTE_ORDER == __BIG_ENDIAN
+ u_int th_off:4,  /* data offset */
+  th_x2:4;  /* (unused) */
+#endif
+ u_char th_flags;
+#define TH_FIN 0x01
+#define TH_SYN 0x02
+#define TH_RST 0x04
+#define TH_PUSH 0x08
+#define TH_ACK 0x10
+#define TH_URG 0x20
+#define TH_ECE 0x40
+#define TH_CWR 0x80
+#define TH_FLAGS (TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG|TH_ECE|TH_CWR)
+ 
+ u_short th_win;   /* window */
+ u_short th_sum;   /* checksum */
+ u_short th_urp;   /* urgent pointer */
+} __attribute__ ((packed)) ;
+typedef struct sr_tcp_hdr sr_tcp_hdr_t;
+
 /* Structure of a ICMP header
  */
 struct sr_icmp_hdr {
@@ -103,7 +134,27 @@ struct sr_icmp_t3_hdr {
 } __attribute__ ((packed)) ;
 typedef struct sr_icmp_t3_hdr sr_icmp_t3_hdr_t;
 
+/* Structure of a ICMP echo request header
+ */
+struct sr_icmp_echo_hdr {
+  uint8_t icmp_type;
+  uint8_t icmp_code;
+  uint16_t icmp_sum;
+  uint16_t icmp_id;
+  uint16_t icmp_seqno;
+  
+} __attribute__ ((packed)) ;
+typedef struct sr_icmp_echo_hdr sr_icmp_echo_hdr_t;
 
+
+struct sr_ip_pseudo_hdr {
+  uint32_t ip_src; 
+  uint32_t ip_dst;
+  uint8_t empty; /* to be kept at 0 */
+  uint8_t ip_p;
+  uint16_t ip_len;
+} __attribute__ ((packed));
+typedef struct sr_ip_pseudo_hdr sr_ip_pseudo_hdr_t;
 
 
 /*
@@ -157,7 +208,8 @@ enum sr_ip_version {
 
 
 enum sr_ip_protocol {
-  ip_protocol_icmp = 0x0001,
+  ip_protocol_icmp = 0x01,
+  ip_protocol_tcp  = 0x06, 
 };
 
 enum sr_ethertype {

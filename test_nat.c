@@ -117,6 +117,8 @@ void init_sr(struct sr_instance **sr)
 	insert_routing_table(&((*sr)->routing_table),0x11111111,0xffff0000,0x88881111,"eth1");
 	insert_routing_table(&((*sr)->routing_table),0x22222222,0xffff0000,0x88882222,"eth2");
 	insert_routing_table(&((*sr)->routing_table),0x33333333,0xffff0000,0x88883333,"eth3");
+
+	(*sr)->nat.ext_ip = 0x99;
 	
 }
 
@@ -214,6 +216,156 @@ void test_mapping(sr_nat_t *nat) {
 
 
 
+void test_translation(sr_nat_t *nat) {
+
+	fprintf(stderr,"%-70s","Testing NAT translation...");
+
+	//insert mapping
+	uint32_t ip_int1 = 11;
+	uint32_t ip_dst1= 66;
+	uint16_t aux_int1 = 1111;
+	uint16_t aux_dst1 = 6611;
+	sr_nat_mapping_t *entry1 = 0;
+	entry1 = sr_nat_insert_mapping(nat, ip_int1,aux_int1,ip_dst1,aux_dst1,nat_mapping_tcp);
+	uint16_t aux_ext1 = entry1->aux_ext;
+
+	//insert mapping
+	uint32_t ip_int2 = 22;
+	uint32_t ip_dst2= 77;
+	uint16_t aux_int2 = 1122;
+	uint16_t aux_dst2 = 7722;
+	sr_nat_mapping_t *entry2 = sr_nat_insert_mapping(nat, ip_int2,aux_int2,ip_dst2,aux_dst2,nat_mapping_tcp);
+	uint16_t aux_ext2 = entry2->aux_ext;
+
+	//insert mapping
+	uint32_t ip_int3 = 33;
+	uint32_t ip_dst3= 88;
+	uint16_t aux_int3 = 1133;
+	uint16_t aux_dst3 = 8833;
+	sr_nat_mapping_t *entry3 = 0;
+	entry3 = sr_nat_insert_mapping(nat, ip_int3,aux_int3,ip_dst3,aux_dst3,nat_mapping_icmp);
+	uint16_t aux_ext3 = entry3->aux_ext;
+
+	//insert mapping
+	uint32_t ip_int4 = 44;
+	uint32_t ip_dst4= 1234;
+	uint16_t aux_int4 = 1144;
+	uint16_t aux_dst4 = 8844;
+	sr_nat_mapping_t *entry4 = 0;
+	entry4 = sr_nat_insert_mapping(nat, ip_int4,aux_int4,ip_dst4,aux_dst4,nat_mapping_icmp);
+	uint16_t aux_ext4 = entry4->aux_ext;
+
+	//insert mapping
+	uint32_t ip_int5 = 55;
+	uint32_t ip_dst5= 1234;
+	uint16_t aux_int5 = 1155;
+	uint16_t aux_dst5 = 8855;
+	sr_nat_mapping_t *entry5 = 0;
+	entry5 = sr_nat_insert_mapping(nat, ip_int5,aux_int5,ip_dst5,aux_dst5,nat_mapping_tcp);
+	uint16_t aux_ext5 = entry5->aux_ext;
+
+	//ICMP headers
+	sr_ip_hdr_t *iphdr = malloc(sizeof(sr_ip_hdr_t) + ICMP_PACKET_SIZE);
+	sr_icmp_echo_hdr_t *echohdr = (sr_icmp_echo_hdr_t *) ((char *)iphdr + sizeof(sr_ip_hdr_t));
+		
+	//icmp header
+	echohdr->icmp_type = icmp_type_echoreq;
+	echohdr->icmp_id = htons(0x1133);
+	echohdr->icmp_sum = 0;
+	echohdr->icmp_sum = cksum(echohdr,ICMP_PACKET_SIZE);
+	
+	//ip header
+	iphdr->ip_src = htonl(33);											//source
+	iphdr->ip_dst = htonl(89);											//destination
+	iphdr->ip_v = 	4;													//version
+	iphdr->ip_hl = sizeof(sr_ip_hdr_t);									//header length with no options
+	iphdr->ip_tos = 0; 													//type of service (random)
+	iphdr->ip_len = htons(sizeof(sr_ip_hdr_t) + ICMP_PACKET_SIZE); //length
+	iphdr->ip_id = 	htons(16); 											//id (random)
+	//iphdr->ip_off 													//fragment flags
+	iphdr->ip_ttl = 10;													//TTL;
+	iphdr->ip_p =	ip_protocol_icmp;									//protocol
+	iphdr->ip_sum = 0;													//checksum
+	iphdr->ip_sum = cksum(iphdr,sizeof(sr_ip_hdr_t) + ICMP_PACKET_SIZE);
+
+	translate_outgoing_icmp(iphdr, entry3, sizeof(sr_ip_hdr_t));
+	//printf("%d\n",ntohl(iphdr->ip_src));
+	assert(ntohl(iphdr->ip_src) == 99);
+	assert(ntohl(iphdr->ip_dst) == 89);
+	assert(ntohs(echohdr->icmp_id) == aux_ext3);
+
+	iphdr->ip_src = htonl(55);											
+	iphdr->ip_dst = htonl(99);
+	iphdr->ip_sum = 0;													//checksum
+	iphdr->ip_sum = cksum(iphdr,sizeof(sr_ip_hdr_t) + ICMP_PACKET_SIZE);	
+
+	echohdr->icmp_id = htons(aux_ext4);
+	echohdr->icmp_sum = 0;
+	echohdr->icmp_sum = cksum(echohdr,ICMP_PACKET_SIZE);
+
+	translate_incoming_icmp(iphdr, entry4, sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+	//printf("%d\n",ntohl(iphdr->ip_src));
+	assert(ntohl(iphdr->ip_src) == 55);
+	assert(ntohl(iphdr->ip_dst) == 44);
+	assert(ntohs(echohdr->icmp_id) == 1144);
+
+
+	//-------------------------------
+
+	//TCP headers
+	sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) ((char *)iphdr + sizeof(sr_ip_hdr_t));
+		
+	//tcp header
+	tcphdr->th_sport = htons(0x1122);
+	tcphdr->th_dport = htons(0x9922);
+	tcphdr->th_sum = 0;
+	tcphdr->th_sum = tcp_cksum(iphdr,tcphdr,sizeof(sr_tcp_hdr_t));
+	
+	//ip header
+	iphdr->ip_src = htonl(22);											//source
+	iphdr->ip_dst = htonl(88);											//destination
+	iphdr->ip_v = 	4;													//version
+	iphdr->ip_hl = sizeof(sr_ip_hdr_t);									//header length with no options
+	iphdr->ip_tos = 0; 													//type of service (random)
+	iphdr->ip_len = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t)); //length
+	iphdr->ip_id = 	htons(16); 											//id (random)
+	//iphdr->ip_off 													//fragment flags
+	iphdr->ip_ttl = 10;													//TTL;
+	iphdr->ip_p =	ip_protocol_tcp;									//protocol
+	iphdr->ip_sum = 0;													//checksum
+	iphdr->ip_sum = cksum(iphdr,sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+
+	translate_outgoing_tcp(iphdr, entry2, sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+	//printf("%d\n",ntohl(iphdr->ip_src));
+	assert(ntohl(iphdr->ip_src) == 99);
+	assert(ntohl(iphdr->ip_dst) == 88);
+	assert(ntohs(tcphdr->th_sport) == aux_ext2);
+	assert(ntohs(tcphdr->th_dport) == 0x9922);
+
+
+	iphdr->ip_src = htonl(44);											//source
+	iphdr->ip_dst = htonl(99);											//destination
+	iphdr->ip_sum = 0;													//checksum
+	iphdr->ip_sum = cksum(iphdr,sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+	tcphdr->th_sport = htons(9945);
+	tcphdr->th_dport = htons(aux_ext5);
+	tcphdr->th_sum = 0;
+	tcphdr->th_sum = tcp_cksum(iphdr,tcphdr,sizeof(sr_tcp_hdr_t));
+
+	translate_incoming_tcp(iphdr, entry5, sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+	//printf("%d\n",ntohl(iphdr->ip_dst));
+	assert(ntohl(iphdr->ip_src) == 44);
+	assert(ntohs(tcphdr->th_sport) == 9945);
+	assert(ntohs(tcphdr->th_dport) == 1155);
+	assert(ntohl(iphdr->ip_dst) == 55);
+
+	free(iphdr);
+
+
+	fprintf(stderr,"PASSED\n");
+}
+
+
 int main(int argc, char **argv) 
 {
 	sentframe = malloc(MAX_FRAME_SIZE);
@@ -224,6 +376,7 @@ int main(int argc, char **argv)
 	fprintf(stderr,"Testing NAT functionality.\n");
 
 	test_mapping(&sr->nat);
+	test_translation(&sr->nat);
 
 	free(sr);
 	free(sentframe);
