@@ -288,7 +288,7 @@ void test_translation(sr_nat_t *nat) {
 	iphdr->ip_sum = 0;													//checksum
 	iphdr->ip_sum = cksum(iphdr,sizeof(sr_ip_hdr_t) + ICMP_PACKET_SIZE);
 
-	translate_outgoing_icmp(iphdr, entry3, sizeof(sr_ip_hdr_t));
+	translate_outgoing_icmp(iphdr, entry3);
 	//printf("%d\n",ntohl(iphdr->ip_src));
 	assert(ntohl(iphdr->ip_src) == 99);
 	assert(ntohl(iphdr->ip_dst) == 89);
@@ -303,7 +303,7 @@ void test_translation(sr_nat_t *nat) {
 	echohdr->icmp_sum = 0;
 	echohdr->icmp_sum = cksum(echohdr,ICMP_PACKET_SIZE);
 
-	translate_incoming_icmp(iphdr, entry4, sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+	translate_incoming_icmp(iphdr, entry4);
 	//printf("%d\n",ntohl(iphdr->ip_src));
 	assert(ntohl(iphdr->ip_src) == 55);
 	assert(ntohl(iphdr->ip_dst) == 44);
@@ -335,7 +335,7 @@ void test_translation(sr_nat_t *nat) {
 	iphdr->ip_sum = 0;													//checksum
 	iphdr->ip_sum = cksum(iphdr,sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
 
-	translate_outgoing_tcp(iphdr, entry2, sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+	translate_outgoing_tcp(iphdr, entry2);
 	//printf("%d\n",ntohl(iphdr->ip_src));
 	assert(ntohl(iphdr->ip_src) == 99);
 	assert(ntohl(iphdr->ip_dst) == 88);
@@ -352,7 +352,7 @@ void test_translation(sr_nat_t *nat) {
 	tcphdr->th_sum = 0;
 	tcphdr->th_sum = tcp_cksum(iphdr,tcphdr,sizeof(sr_tcp_hdr_t));
 
-	translate_incoming_tcp(iphdr, entry5, sizeof(sr_ip_hdr_t) + sizeof(sr_tcp_hdr_t));
+	translate_incoming_tcp(iphdr, entry5);
 	//printf("%d\n",ntohl(iphdr->ip_dst));
 	assert(ntohl(iphdr->ip_src) == 44);
 	assert(ntohs(tcphdr->th_sport) == 9945);

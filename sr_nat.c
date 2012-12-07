@@ -8,17 +8,21 @@
 #include <stdbool.h>
 #include "sr_protocol.h"
 #include "sr_router.h"
-
-
-#include "sr_nat_logic.c"
-#include "sr_nat_tcpstate.c"
-#include "sr_nat_utils.c"
+#include "sr_if.h"
+#include "sr_rt.h"
 
 uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload); //CLEANUP
+bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct sr_rt **best_match); //CLEANUP 
+
+#include "sr_nat_tcpstate.c"  //CLEANUP
+#include "sr_nat_utils.c"
+#include "sr_nat_tcp.c"
+#include "sr_nat_icmp.c"
+
 
 
 int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
-                  time_t tcp_trans_timeout,uint32_t ext_ip) {
+                  time_t tcp_trans_timeout,sr_if_t *ext_iface) {
 
   assert(nat);
 
@@ -38,10 +42,11 @@ int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab
   /* CAREFUL MODIFYING CODE ABOVE THIS LINE! */
 
   nat->mappings = NULL;
+  nat->pending_syns = NULL;
 
   /* Initialize any variables here */
 
-  nat->ext_ip = ext_ip;
+  nat->ext_iface = ext_iface;
   nat->icmp_query_timeout = icmp_query_timeout;
   nat->tcp_estab_timeout = tcp_estab_timeout;
   nat->tcp_trans_timeout = tcp_trans_timeout;
@@ -69,6 +74,17 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
     prevmap = curmap;
   } 
   if (prevmap != 0) free(prevmap);
+
+  //free pending syns linked lists
+
+  sr_nat_pending_syn_t *prevsyn = 0;
+  for (sr_nat_pending_syn_t *cursyn = nat->pending_syns; cursyn != 0; cursyn = cursyn->next) {
+    if (prevsyn != 0) {
+      free(prevsyn->iphdr);
+      prevsyn = cursyn;
+    }
+  }
+  if (prevsyn != 0) free(prevsyn);
 
   pthread_kill(nat->thread, SIGKILL);
   return pthread_mutex_destroy(&(nat->lock)) &&
@@ -122,119 +138,6 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
 }
 
 
-//assumes everything is in network byte order
-void translate_incoming_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
-{
-
-  assert(iphdr->ip_p == ip_protocol_icmp);
-  assert(map->type == nat_mapping_icmp);
-
-  sr_icmp_hdr_t *icmphdr = (sr_icmp_hdr_t *) extract_ip_payload(iphdr, iplen, NULL);
-  
-  //only translate icmp echo requests and replies
-  if ((icmphdr->icmp_type != icmp_type_echoreq) && (icmphdr->icmp_type != icmp_type_echoreply)) 
-      return;
-
-  sr_icmp_echo_hdr_t *echohdr = (sr_icmp_echo_hdr_t *) icmphdr; 
-
-  //translate destination ip address to private destination of destination host
-  iphdr->ip_dst = htonl(map->ip_int);
-
-  echohdr->icmp_id = htons(map->aux_int);
-  
-  //recompute icmp checksum
-  echohdr->icmp_sum = 0;
-  echohdr->icmp_sum = cksum(echohdr,ICMP_PACKET_SIZE);
-
-  //recompute ip sum (redundant, should be performed by caller)
-  iphdr->ip_sum = 0;
-  iphdr->ip_sum = cksum(iphdr,iplen);
-
-}
-
-//assumes everything is in network byte order
-void translate_outgoing_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
-{
-
-  assert(iphdr->ip_p == ip_protocol_icmp);
-  assert(map->type == nat_mapping_icmp);
-
-   sr_icmp_hdr_t *icmphdr = (sr_icmp_hdr_t *) extract_ip_payload(iphdr, iplen, NULL);
-  
-  //only translate icmp echo requests and replies
-  if ((icmphdr->icmp_type != icmp_type_echoreq) && (icmphdr->icmp_type != icmp_type_echoreply)) 
-      return;
-
-  sr_icmp_echo_hdr_t *echohdr = (sr_icmp_echo_hdr_t *) icmphdr; 
-
-  //translate src ip address to appear as if packet
-  //originated from NAT
-  iphdr->ip_src = htonl(map->ip_ext);
-
-  echohdr->icmp_id = htons(map->aux_ext);
-  
-  //recompute icmp checksum
-  echohdr->icmp_sum = 0;
-  echohdr->icmp_sum = cksum(echohdr,ICMP_PACKET_SIZE);
-
-  //recompute ip sum (redundant, should be performed by caller)
-  iphdr->ip_sum = 0;
-  iphdr->ip_sum = cksum(iphdr,iplen);
-
-}
-
-//assumes everything is in network byte order
-void translate_incoming_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
-{
-
-  assert(iphdr->ip_p == ip_protocol_tcp);
-  assert(map->type == nat_mapping_tcp);
-
-  //translate src ip address to NAT's external ip
-  iphdr->ip_dst = htonl(map->ip_int);
-
-  unsigned int tcplen = 0;
-  sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);
-
-  //translate port
-  tcphdr->th_dport = htons(map->aux_int);
-
-  //compute tcp checksum
-  tcphdr->th_sum = 0;
-  tcphdr->th_sum = tcp_cksum(iphdr,tcphdr,tcplen);
-
-  //compute ip checksum. (redundant, should be performed by caller)
-  iphdr->ip_sum = 0;
-  iphdr->ip_sum = cksum(iphdr,iplen);
-
-}
-
-//assumes everything is in network byte order
-void translate_outgoing_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map,unsigned int iplen) 
-{
-
-  assert(iphdr->ip_p == ip_protocol_tcp);
-  assert(map->type == nat_mapping_tcp);
-
-  //translate src ip address to NAT's external ip
-  iphdr->ip_src = htonl(map->ip_ext);
-
-  unsigned int tcplen = 0;
-  sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);
-
-  //translate port
-  tcphdr->th_sport = htons(map->aux_ext);
-
-  //compute tcp checksum
-  tcphdr->th_sum = 0;
-  tcphdr->th_sum = tcp_cksum(iphdr,tcphdr,tcplen);
-
-  //compute ip checksum. (redundant, should be performed by caller)
-  iphdr->ip_sum = 0;
-  iphdr->ip_sum = cksum(iphdr,iplen);
-
-}
-
 time_t current_time(); //defined in sr_router_utils.c. CLEANUP
 
 
@@ -258,6 +161,20 @@ uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type)
 
 }
 
+
+//make a copy of the ip packet and put it in pending list
+void sr_nat_insert_pending_syn(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
+{
+  unsigned int iplen = ntohs(iphdr->ip_len);
+  sr_nat_pending_syn_t *psyn = malloc(sizeof(sr_nat_pending_syn_t));
+  psyn->time_received = current_time();
+  psyn->iphdr = malloc(iplen);
+  memcpy(psyn->iphdr,iphdr,iplen);
+
+  psyn->next = nat->pending_syns;
+  nat->pending_syns = psyn;
+}
+
 /* Insert a new mapping into the nat's mapping table.
    returns a reference to the new mapping, for thread safety.
  */
@@ -273,7 +190,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   mapping->type = type;
   mapping->ip_int = ip_int;
   mapping->aux_int = aux_int;
-  mapping->ip_ext = nat->ext_ip;
+  mapping->ip_ext = nat->ext_iface->ip;
   mapping->aux_ext = rand_unused_aux(nat,type);
   mapping->last_updated = current_time();
   if (type == nat_mapping_tcp) {
@@ -295,21 +212,66 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   return mapping;
 }
 
+//return true if router needs to process packet after function returns
+bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
-bool do_nat_logic(struct sr_nat *nat, sr_ip_hdr_t* iphdr, unsigned int iplen, sr_if *iface) {
 
+  if(!sr->nat_enabled) {
+    return true;
+  }
+
+  struct sr_nat *nat = &(sr->nat);
   pthread_mutex_lock(&(nat->lock));
+  bool routing_required = true;
 
+  //uint32_t ip_src = ntohl(iphdr->ip_src);
+  uint32_t ip_dst = ntohl(iphdr->ip_dst);
 
+  if (received_external(nat,iface) ) {
+    //received on external interface
 
+    if (destined_to_nat(nat,ip_dst)) {
+    
+      //destined to nat and/or private network behind it
+      if (iphdr->ip_p == ip_protocol_icmp) { //ICMP
+        routing_required = handle_incoming_icmp(&sr->nat,iphdr);
+      } else if (iphdr->ip_p == ip_protocol_tcp) { //TCP
+        routing_required = handle_incoming_tcp(&sr->nat,iphdr);
+      }  else {
+        routing_required = false; //drop packet if not TCP/ICMP
+      }
+    }
 
+  } else {
+    //received on internal interface
+    sr_rt_t **best_match = NULL;
+
+    if (destined_to_nat(nat,ip_dst)) {
+      //hairpinning not supported
+      routing_required = false;
+    } else {
+      if (longest_prefix_match(sr->routing_table, ip_dst,best_match) && 
+          (strcmp((*best_match)->interface,iface->name)!=0)) {
+
+        //packet crossing the NAT outbound
+        if (iphdr->ip_p == ip_protocol_icmp) { //ICMP
+          routing_required = handle_outgoing_icmp(&sr->nat,iphdr);
+        } else if (iphdr->ip_p == ip_protocol_tcp) { //TCP
+          routing_required = handle_outgoing_tcp(&sr->nat,iphdr);
+        }  else {
+          routing_required = false; //drop packet if not TCP/ICMP
+        }
+      }
+    }
+  }
 
   //recompute checksum to account for changes made
+  unsigned int iplen = ntohs(iphdr->ip_len);
   iphdr->ip_sum = 0;
   iphdr->ip_sum = cksum(iphdr,iplen);
 
   pthread_mutex_unlock(&(nat->lock));
 
-  return true;
+  return routing_required;
 
 }

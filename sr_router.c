@@ -63,7 +63,7 @@ void handle_ip_packet(struct sr_instance* sr, sr_ethernet_hdr_t *frame, unsigned
  *
  *---------------------------------------------------------------------*/
 
-void sr_init(struct sr_instance* sr,bool nat_enabled, time_t icmp_query_timeout,
+void sr_init(struct sr_instance* sr,char * external_iface_name, bool nat_enabled, time_t icmp_query_timeout,
 			 time_t tcp_estab_timeout,time_t tcp_trans_timeout)
 {
 
@@ -87,9 +87,9 @@ void sr_init(struct sr_instance* sr,bool nat_enabled, time_t icmp_query_timeout,
 
 	/* initialize nat */
     if (nat_enabled) {
-        sr_if_t *iface = sr_get_interface(sr,DEFAULT_EXTERNAL_INTERFACE_NAME);
+        sr_if_t *iface = sr_get_interface(sr,external_iface_name);
         assert (iface != 0);
-        sr_nat_init(&sr->nat,icmp_query_timeout,tcp_estab_timeout,tcp_trans_timeout,iface->ip);
+        sr_nat_init(&sr->nat,icmp_query_timeout,tcp_estab_timeout,tcp_trans_timeout,iface);
     }
 
 } /* -- sr_init -- */
@@ -788,7 +788,7 @@ void handle_ip_packet(struct sr_instance* sr, sr_ethernet_hdr_t *frame, unsigned
 
 	//perform NAT operations if necessary
 	if (sr->nat_enabled) {
-		if (do_nat_logic(&sr->nat,iphdr,iplen,iface)) {
+		if (do_nat_logic(sr,iphdr,iface)) {
 			Debug("--Dropping frame as instructed to by NAT.\n");
 			return;
 		}

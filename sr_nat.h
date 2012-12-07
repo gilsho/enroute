@@ -5,14 +5,14 @@
 #include <inttypes.h>
 #include <time.h>
 #include <pthread.h>
+#include <stdbool.h>
+#include "sr_if.h"
+
 
 
 #define DEFAULT_TCP_ESTABLISHED_TIMEOUT (2*64*60)
 #define DEFAULT_TCP_TRANSITORY_TIMEOUT (4*60)
 #define DEFAULT_ICMP_TIMEOUT 60
-
-#define DEFAULT_EXTERNAL_INTERFACE_NAME "eth2"
-
 
 typedef enum {
   nat_mapping_icmp,
@@ -33,6 +33,15 @@ typedef enum {
   tcp_last_ack,
   tcp_time_wait
 } sr_nat_tcp_state;
+
+
+struct sr_nat_pending_syn {
+  /* add TCP connection state data members here */
+  time_t time_received;
+  sr_ip_hdr_t *iphdr;
+  struct sr_nat_pending_syn *next;
+};
+typedef struct sr_nat_pending_syn sr_nat_pending_syn_t;
 
 struct sr_nat_connection {
   /* add TCP connection state data members here */
@@ -58,7 +67,8 @@ typedef struct sr_nat_mapping sr_nat_mapping_t;
 typedef struct sr_nat {
   /* add any fields here */
   struct sr_nat_mapping *mappings;
-  uint32_t ext_ip;
+  sr_if_t *ext_iface;
+  sr_nat_pending_syn_t *pending_syns;
 
   /* threading */
   pthread_mutex_t lock;
@@ -74,7 +84,7 @@ typedef struct sr_nat {
 
 
 int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
-                  time_t tcp_trans_timeout,uint32_t ext_ip);     /* Initializes the nat */
+                  time_t tcp_trans_timeout,sr_if_t *ext_iface);     /* Initializes the nat */
 int   sr_nat_destroy(struct sr_nat *nat);  /* Destroys the nat (free memory) */
 void *sr_nat_timeout(void *nat_ptr);  /* Periodic Timout */
 
@@ -93,6 +103,11 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
 struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, uint32_t ip_ext, uint16_t aux_ext,
   sr_nat_mapping_type type );
+
+
+bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface); //CLEANUP
+
+void sr_nat_insert_pending_syn(struct sr_nat *nat, sr_ip_hdr_t *iphdr); //CLEANUP
 
 
 #endif

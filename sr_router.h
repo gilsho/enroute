@@ -70,8 +70,8 @@ int sr_connect_to_server(struct sr_instance* ,unsigned short , char* );
 int sr_read_from_server(struct sr_instance* );
 
 /* -- sr_router.c -- */
-void sr_init(struct sr_instance* sr,bool nat_enabled,time_t icmp_query_timeout,time_t tcp_estab_timeout,
-             time_t tcp_trans_timeout);
+void sr_init(struct sr_instance* sr, char * external_iface_name, bool nat_enabled, 
+            time_t icmp_query_timeout,time_t tcp_estab_timeout, time_t tcp_trans_timeout);
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 void handle_arpreq(struct sr_instance *sr, sr_arpreq_t *arpreq);
 

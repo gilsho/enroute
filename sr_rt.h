@@ -35,6 +35,7 @@ struct sr_rt
     char   interface[sr_IFACE_NAMELEN];
     struct sr_rt* next;
 };
+typedef struct sr_rt sr_rt_t;
 
 
 int sr_load_rt(struct sr_instance*,const char*);

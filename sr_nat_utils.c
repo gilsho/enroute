@@ -1,6 +1,8 @@
 
 
 #include "sr_utils.h"
+#include "sr_nat.h"
+#include "sr_if.h"
 
 uint16_t tcp_cksum (sr_ip_hdr_t *iphdr, sr_tcp_hdr_t *tcphdr,  unsigned int tcplen) 
 {
@@ -20,4 +22,32 @@ uint16_t tcp_cksum (sr_ip_hdr_t *iphdr, sr_tcp_hdr_t *tcphdr,  unsigned int tcpl
 
 	return cksum(data,len_total);
 
+}
+
+bool received_external(struct sr_nat *nat, sr_if_t *recv_iface) {
+    return (recv_iface->name == nat->ext_iface->name);
+}
+
+bool destined_to_nat(struct sr_nat *nat, uint32_t ip_dst) {
+    return (ip_dst == nat->ext_iface->ip);
+}
+
+bool is_tcp_syn(sr_tcp_hdr_t *tcphdr) 
+{
+	return (tcphdr->th_flags && TH_SYN);
+}
+
+bool is_tcp_ack(sr_tcp_hdr_t *tcphdr) 
+{
+	return (tcphdr->th_flags && TH_ACK);
+}
+
+bool is_tcp_fin(sr_tcp_hdr_t *tcphdr) 
+{
+	return (tcphdr->th_flags && TH_FIN);
+}
+
+bool is_tcp_rst(sr_tcp_hdr_t *tcphdr) 
+{
+	return (tcphdr->th_flags && TH_RST);
 }

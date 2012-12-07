@@ -48,6 +48,8 @@ extern char* optarg;
 #define DEFAULT_RTABLE "rtable"
 #define DEFAULT_TOPO 0
 
+#define DEFAULT_EXTERNAL_INTERFACE "eth2"
+
 static void usage(char* );
 static void sr_init_instance(struct sr_instance* );
 static void sr_destroy_instance(struct sr_instance* );
@@ -180,7 +182,7 @@ int main(int argc, char **argv)
     }
 
     /* call router init (for arp subsystem etc.) */
-    sr_init(&sr,nat_enabled,icmp_query_timeout,tcp_estab_timeout,tcp_trans_timeout);
+    sr_init(&sr,DEFAULT_EXTERNAL_INTERFACE,nat_enabled,icmp_query_timeout,tcp_estab_timeout,tcp_trans_timeout);
 
 
     /* -- whizbang main loop ;-) */
