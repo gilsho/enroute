@@ -250,14 +250,14 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
   } else {
     //received on internal interface
-    sr_rt_t **best_match = NULL;
+    sr_rt_t *best_match = NULL;
 
     if (destined_to_nat(sr,ip_dst)) {
       //hairpinning not supported
       Debug("+++ Hairpinning detected. unsupported feature. +++\n");
       routing_required = false;
     } else {
-      if (longest_prefix_match(sr->routing_table, ip_dst,best_match) && 
+      if (longest_prefix_match(sr->routing_table, ip_dst,&best_match) && 
           (strcmp((*best_match)->interface,iface->name)!=0)) {
 
         //packet crossing the NAT outbound
