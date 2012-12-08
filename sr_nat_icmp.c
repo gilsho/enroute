@@ -154,7 +154,7 @@ nat_action_type handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 	update_icmp_connection(map);	
 
 
-	return true;
+	return nat_action_route;
 
 }
 
