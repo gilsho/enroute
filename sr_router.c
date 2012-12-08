@@ -582,7 +582,7 @@ void wrap_ip_packet(struct sr_instance *sr,uint8_t *payload, unsigned int pyldle
 
 void send_ICMP_ttl_exceeded(struct sr_instance *sr, sr_ip_hdr_t *recv_iphdr,sr_if_t *iface)
 {
-
+	Debug("--Sending TTL exceeded\n");
   	sr_icmp_t3_hdr_t *icmp3hdr = (sr_icmp_t3_hdr_t *) malloc(ICMP_PACKET_SIZE);
   	memset(icmp3hdr,0,ICMP_PACKET_SIZE);
 
@@ -789,7 +789,7 @@ void handle_ip_packet(struct sr_instance* sr, sr_ethernet_hdr_t *frame, unsigned
 
 	//perform NAT operations if necessary
 	if (sr->nat_enabled) {
-		if (do_nat_logic(sr,iphdr,iface)) {
+		if (!do_nat_logic(sr,iphdr,iface)) {
 			Debug("--Dropping frame as instructed to by NAT.\n");
 			return;
 		}
