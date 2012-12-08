@@ -120,7 +120,7 @@ void print_hdr_icmp(uint8_t *buf) {
       (icmp_hdr->icmp_type != icmp_type_echoreply)) {
       
     sr_icmp_echo_hdr_t *echo_hdr = (sr_icmp_echo_hdr_t *)icmp_hdr;
-    fprintf(stderr, "\tid: %d\n",noths(echo_hdr->icmp_id));
+    fprintf(stderr, "\tid: %d\n",ntohs(echo_hdr->icmp_id));
     fprintf(stderr, "\tsequence number: %d\n",ntohs(echo_hdr->icmp_seqno));
   }
 
