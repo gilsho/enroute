@@ -227,7 +227,7 @@ bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
 
 
   sr_rt_t *best_match = NULL;
-  if (longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match))
+  if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match))
     return true;  //no match in routing table. need to generate ICMP host unreachable
                   //no action required on behalf of the NAT
   
@@ -264,7 +264,11 @@ bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
 
 
   sr_rt_t *best_match = NULL;
-  if (longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match)) 
+  if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match)) 
+    return true;  //no match in routing table. need to generate ICMP host unreachable
+                  //no action required on behalf of the NAT
+
+  if  (strcmp(best_match->interface,iface->name)==0)
     return true;  //routing back on same interface: external->external.
                   //no action required on behalf of the NAT
 
