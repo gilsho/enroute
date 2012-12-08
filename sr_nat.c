@@ -194,7 +194,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   mapping->type = type;
   mapping->ip_int = ip_int;
   mapping->aux_int = aux_int;
-  mapping->ip_ext = ext_iface->ip;
+  mapping->ip_ext = ntohl(ext_iface->ip);
   mapping->aux_ext = rand_unused_aux(nat,type);
   mapping->last_updated = current_time();
   if (type == nat_mapping_tcp) {
@@ -226,7 +226,7 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
   DebugNAT("+++++++ Processin NAT Logic +++++++\n");
 
-  DebugNAT(" +++ Original packet is:\n");
+  DebugNAT(" +++ Original packet:\n");
   DebugNATPacket(iphdr);
 
   struct sr_nat *nat = &(sr->nat);
