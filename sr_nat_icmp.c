@@ -77,8 +77,9 @@ void update_icmp_connection(sr_nat_mapping_t *map)
 
 
 
-bool handle_outgoing_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
+bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
 {
+	struct sr_nat *nat = &sr->nat;
 	unsigned int iplen = ntohs(iphdr->ip_len);
   	unsigned int icmplen = 0;
   	sr_icmp_echo_hdr_t *icmphdr = (sr_icmp_echo_hdr_t *) extract_ip_payload(iphdr, iplen, &icmplen);  
@@ -95,7 +96,7 @@ bool handle_outgoing_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	if (map == NULL) {
 		//insert new mapping into the translation table
-		map = sr_nat_insert_mapping(nat,ip_src,aux_src,0,0,nat_mapping_icmp);
+		map = sr_nat_insert_mapping(sr,ip_src,aux_src,0,0,nat_mapping_icmp);
 	}
 	//translate entry
 	translate_outgoing_icmp(iphdr,map);

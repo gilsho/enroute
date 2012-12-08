@@ -80,8 +80,9 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
 }
 
 
-bool handle_outgoing_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
+bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
 {
+	struct sr_nat *nat = &sr->nat;
 	unsigned int iplen = ntohs(iphdr->ip_len);
   	unsigned int tcplen = 0;
   	sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);  
@@ -96,7 +97,7 @@ bool handle_outgoing_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	if (map == NULL) {
 		//insert new mapping into the translation table
-		map = sr_nat_insert_mapping(nat,ip_src,aux_src,ip_dst,aux_dst,nat_mapping_tcp);
+		map = sr_nat_insert_mapping(sr,ip_src,aux_src,ip_dst,aux_dst,nat_mapping_tcp);
 	}
 	//translate entry
 	translate_outgoing_tcp(iphdr,map);

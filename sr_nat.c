@@ -10,6 +10,7 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_rt.h"
+#include "sr_router.h"
 
 uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload); //CLEANUP
 bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct sr_rt **best_match); //CLEANUP 
@@ -22,7 +23,7 @@ bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct s
 
 
 int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
-                  time_t tcp_trans_timeout,sr_if_t *ext_iface) {
+                  time_t tcp_trans_timeout,char *ext_iface_name) {
 
   assert(nat);
 
@@ -46,7 +47,7 @@ int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab
 
   /* Initialize any variables here */
 
-  nat->ext_iface = ext_iface;
+  nat->ext_iface_name = ext_iface_name;
   nat->icmp_query_timeout = icmp_query_timeout;
   nat->tcp_estab_timeout = tcp_estab_timeout;
   nat->tcp_trans_timeout = tcp_trans_timeout;
@@ -179,18 +180,21 @@ void sr_nat_insert_pending_syn(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
    returns a reference to the new mapping, for thread safety.
  */
 
-struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
+struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   uint32_t ip_int, uint16_t aux_int, uint32_t ip_dest, uint16_t aux_dest,
   sr_nat_mapping_type type ) {
 
   /* handle insert here, create a mapping, and then return a copy of it */
+  struct sr_nat *nat = &sr->nat;
+  sr_if_t *ext_iface = sr_get_interface(sr,nat->ext_iface_name);
+  assert(ext_iface != NULL);
 
   //create new mapping
   sr_nat_mapping_t *mapping = malloc(sizeof(sr_nat_mapping_t));
   mapping->type = type;
   mapping->ip_int = ip_int;
   mapping->aux_int = aux_int;
-  mapping->ip_ext = nat->ext_iface->ip;
+  mapping->ip_ext = ext_iface->ip;
   mapping->aux_ext = rand_unused_aux(nat,type);
   mapping->last_updated = current_time();
   if (type == nat_mapping_tcp) {
@@ -220,6 +224,8 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
     return true;
   }
 
+  Debug("+++++++ Processin NAT Logic +++++++\n");
+
   struct sr_nat *nat = &(sr->nat);
   pthread_mutex_lock(&(nat->lock));
   bool routing_required = true;
@@ -230,7 +236,7 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
   if (received_external(nat,iface) ) {
     //received on external interface
 
-    if (destined_to_nat(nat,ip_dst)) {
+    if (destined_to_nat(sr,ip_dst)) {
     
       //destined to nat and/or private network behind it
       if (iphdr->ip_p == ip_protocol_icmp) { //ICMP
@@ -246,8 +252,9 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
     //received on internal interface
     sr_rt_t **best_match = NULL;
 
-    if (destined_to_nat(nat,ip_dst)) {
+    if (destined_to_nat(sr,ip_dst)) {
       //hairpinning not supported
+      Debug("+++ Hairpinning detected. unsupported feature. +++\n");
       routing_required = false;
     } else {
       if (longest_prefix_match(sr->routing_table, ip_dst,best_match) && 
@@ -255,9 +262,9 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
         //packet crossing the NAT outbound
         if (iphdr->ip_p == ip_protocol_icmp) { //ICMP
-          routing_required = handle_outgoing_icmp(&sr->nat,iphdr);
+          routing_required = handle_outgoing_icmp(sr,iphdr);
         } else if (iphdr->ip_p == ip_protocol_tcp) { //TCP
-          routing_required = handle_outgoing_tcp(&sr->nat,iphdr);
+          routing_required = handle_outgoing_tcp(sr,iphdr);
         }  else {
           routing_required = false; //drop packet if not TCP/ICMP
         }
