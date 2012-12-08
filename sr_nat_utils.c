@@ -25,7 +25,7 @@ uint16_t tcp_cksum (sr_ip_hdr_t *iphdr, sr_tcp_hdr_t *tcphdr,  unsigned int tcpl
 }
 
 bool received_external(struct sr_nat *nat, sr_if_t *recv_iface) {
-    return (recv_iface->name == nat->ext_iface_name);
+    return (strcmp(recv_iface->name,nat->ext_iface_name) == 0);
 }
 
 bool destined_to_nat(struct sr_instance* sr, uint32_t ip_dst) {
