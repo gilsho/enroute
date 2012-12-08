@@ -20,9 +20,9 @@ void translate_outgoing_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
   //translate src ip address to appear as if packet
   //originated from NAT
   DebugNAT("+++ Translating source IP address from [");
-  DebugNATaddrIP(ntohl(iphdr->ip_src));
+  DebugNATAddrIP(ntohl(iphdr->ip_src));
   DebugNAT("] to [");
-  DebugNATaddrIP(ntohl(map->ip_ext));
+  DebugNATAddrIP(ntohl(map->ip_ext));
   DebugNAT("]. +++\n");
   iphdr->ip_src = map->ip_ext;
 
@@ -59,9 +59,9 @@ void translate_incoming_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
 
   //translate destination ip address to private destination of destination host
   DebugNAT("+++ Translating destination IP address from [");
-  DebugNATaddrIP(ntohl(iphdr->ip_dst));
+  DebugNATAddrIP(ntohl(iphdr->ip_dst));
   DebugNAT("] to [");
-  DebugNATaddrIP(ntohl(map->ip_int));
+  DebugNATAddrIP(ntohl(map->ip_int));
   DebugNAT("]. +++\n");
   iphdr->ip_dst = map->ip_int;
 

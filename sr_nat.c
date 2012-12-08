@@ -274,9 +274,25 @@ nat_action_type do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_i
     return nat_action_route;  //routing back on same interface: external->external.
                   //no action required on behalf of the NAT
 
-  DebugNAT("+++ Packet destined directly to internal interface. drop.. +++\n");
+  DebugNAT("+++ Packet destined directly to internal interface. refuse request +++\n");
   return nat_action_unrch; //ICMP host unreachable should be sent to packets trying to
                             //access hosts behind the NAT directly
+}
+
+void print_nat_action(nat_action_type action) 
+{
+  switch(action) {
+    case nat_action_route:
+      fprintf(stderr," ROUTE");
+      break;
+    case nat_action_drop:
+      fprintf(stderr,"DROP");
+      break;
+    case nat_action_unrch:
+      fprintf(stderr,"UNREACHABLE");
+      break;
+  }
+
 }
 
 //return true if router needs to process packet after function returns
@@ -314,6 +330,9 @@ nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *ifac
 
   pthread_mutex_unlock(&(nat->lock));
 
+  DebugNAT("+++++++ NAT action required: ");
+  DebugNATAction(natact);
+  DebugNAT("+++++++\n");
   return natact;
 
 }
