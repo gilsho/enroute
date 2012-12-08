@@ -101,10 +101,10 @@ bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
   	unsigned int tcplen = 0;
   	sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);  
 
-  	uint32_t ip_src = ntohl(iphdr->ip_src);
-	uint32_t ip_dst = ntohl(iphdr->ip_dst);
-  	uint16_t aux_src = ntohs(tcphdr->th_sport);
-  	uint16_t aux_dst = ntohs(tcphdr->th_dport);
+  	uint32_t ip_src = iphdr->ip_src;
+	uint32_t ip_dst = iphdr->ip_dst;
+  	uint16_t aux_src = tcphdr->th_sport;
+  	uint16_t aux_dst = tcphdr->th_dport;
 
 
   	sr_nat_mapping_t *map = sr_nat_lookup_internal(nat,ip_src,aux_src,nat_mapping_tcp);
@@ -129,10 +129,10 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
   	unsigned int tcplen = 0;
   	sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);  
 
-  	uint32_t ip_src = ntohl(iphdr->ip_src);
+  	uint32_t ip_src = iphdr->ip_src;
 	//uint32_t ip_dst = ntohl(iphdr->ip_dst);
-  	uint16_t aux_src = ntohs(tcphdr->th_sport);
-  	uint16_t aux_dst = ntohs(tcphdr->th_dport);
+  	uint16_t aux_src = tcphdr->th_sport;
+  	uint16_t aux_dst = tcphdr->th_dport;
 
 
   	sr_nat_mapping_t *map = sr_nat_lookup_external(nat,aux_dst,nat_mapping_tcp);
