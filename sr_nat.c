@@ -219,7 +219,6 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
 bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 { 
   DebugNAT("+++ Applying internal NAT interface logic +++\n");
-  uint32_t ip_dst = ntohl(iphdr->ip_dst);
   if (destined_to_nat(sr,ip_dst)) {
     //hairpinning not supported
     DebugNAT("+++ Potential hairpinning detected. assuming NAT is final destination. +++\n");
@@ -228,7 +227,7 @@ bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
 
 
   sr_rt_t *best_match = NULL;
-  if (longest_prefix_match(sr->routing_table, ip_dst,&best_match))
+  if (longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match))
     return true;  //no match in routing table. need to generate ICMP host unreachable
                   //no action required on behalf of the NAT
   
@@ -251,7 +250,6 @@ bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
 bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 {
   DebugNAT("+++ Applying external NAT interface logic +++\n");
-  uint32_t ip_dst = ntohl(iphdr->ip_dst);
   if (destined_to_nat(sr,ip_dst)) {
     DebugNAT("+++ Inbound packet destined to NAT. handling... +++\n");
     //destined to nat and/or private network behind it
@@ -266,7 +264,7 @@ bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
 
 
   sr_rt_t *best_match = NULL;
-  if (longest_prefix_match(sr->routing_table, ip_dst,&best_match))
+  if (longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match)) 
     return true;  //routing back on same interface: external->external.
                   //no action required on behalf of the NAT
 
