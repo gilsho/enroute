@@ -14,10 +14,10 @@
 #define DebugNATAddrIP(ipaddr) print_addr_ip_int(ipaddr)
 #define DebugNATAction(action) print_nat_action(action)
 #else
-#define DebugNAT(x, args...) 
-#define DebugNATPacket(pkt) 
-#define DebugNATaddrIP(ipaddr)
-#define DebugNATaction(action)
+#define DebugNAT(x, args...) do {} while(0)
+#define DebugNATPacket(pkt)  do {} while(0)
+#define DebugNATaddrIP(ipaddr) do {} while(0)
+#define DebugNATaction(action) do {} while(0)
 #endif
 
 
