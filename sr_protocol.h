@@ -152,7 +152,7 @@ struct sr_ip_pseudo_hdr {
   uint32_t ip_dst;
   uint8_t empty; /* to be kept at 0 */
   uint8_t ip_p;
-  uint16_t ip_len;
+  uint16_t tcp_len;
 } __attribute__ ((packed));
 typedef struct sr_ip_pseudo_hdr sr_ip_pseudo_hdr_t;
 
