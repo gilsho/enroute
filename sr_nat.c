@@ -258,7 +258,7 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
       routing_required = false;
     } else {
       if (longest_prefix_match(sr->routing_table, ip_dst,&best_match) && 
-          (strcmp((*best_match)->interface,iface->name)!=0)) {
+          (strcmp(best_match->interface,iface->name)!=0)) {
 
         //packet crossing the NAT outbound
         if (iphdr->ip_p == ip_protocol_icmp) { //ICMP
