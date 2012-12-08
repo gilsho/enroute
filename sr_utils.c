@@ -208,14 +208,14 @@ void print_hdr_tcp(uint8_t *buf) {
 
 void print_ip_full(uint8_t *buf) 
 {
-
-  print_hdr_ip(buf + sizeof(sr_ethernet_hdr_t));
-  uint8_t ip_proto = ip_protocol(buf + sizeof(sr_ethernet_hdr_t));
+  sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(buf);
+  print_hdr_ip(buf);
+  uint8_t ip_proto = iphdr->ip_p;
 
   if (ip_proto == ip_protocol_icmp) { /* ICMP */
-    print_hdr_icmp(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+    print_hdr_icmp(buf + sizeof(sr_ip_hdr_t));
   } else if (ip_proto == ip_protocol_tcp) {
-    print_hdr_tcp(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+    print_hdr_tcp(buf + sizeof(sr_ip_hdr_t));
   }
 
 }
