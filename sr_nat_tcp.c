@@ -152,7 +152,6 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	//translate entry
 	translate_incoming_tcp(iphdr,map);
-	DebugNAT("+++ Translating port [%d] to [%d]. +++\n",ntohs(aux_src),ntohs(map->aux_ext));
 
 	//update connection state
 	update_tcp_connection(map,ip_src,aux_src,tcphdr,true); 	

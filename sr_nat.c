@@ -272,9 +272,9 @@ bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
     return true;  //routing back on same interface: external->external.
                   //no action required on behalf of the NAT
 
-  DebugNAT("+++ Packet destined directly to internal interface. leaving packet unchanged... +++\n");
-  return true; //packets for entires that don't contain any mapping are
-               //assumed to be directed to NAT itself. should generate ICMP Port unreachable
+  DebugNAT("+++ Packet destined directly to internal interface. drop.. +++\n");
+  return false; //packets looking to access interfaces behind NAT directly
+                //should be dropped
 }
 
 //return true if router needs to process packet after function returns

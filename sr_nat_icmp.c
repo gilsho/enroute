@@ -145,12 +145,11 @@ bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 	//do not accept connections from unmapped ports
 	if (map == NULL) {
 		DebugNAT("+++ Segment addressed to unmapped id ++\n");
-		return false;
+		return true; //allow router to generate host unreachable ICMP
 	}
 
 	//translate entry
 	translate_incoming_icmp(iphdr,map);
-	DebugNAT("+++ Mapping id [%d] to [%d]. +++\n",ntohs(aux_dst),ntohs(map->aux_int));
 	//update connection state
 	update_icmp_connection(map);	
 
