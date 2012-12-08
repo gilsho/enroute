@@ -89,7 +89,7 @@ void update_icmp_connection(sr_nat_mapping_t *map)
 
 
 
-bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
+nat_action_type handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
 {
 	DebugNAT("+++ NAT handling outbound ICMP +++\n");
 	struct sr_nat *nat = &sr->nat;
@@ -100,7 +100,7 @@ bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
   	if ((icmphdr->icmp_type != icmp_type_echoreply) &&
   		(icmphdr->icmp_type != icmp_type_echoreq)) {
   		DebugNAT("+++ Unsupported ICMP type. +++\n");
-  		return false; //ignore icmp packets other then echo requests/replies
+  		return nat_action_drop; //ignore icmp packets other then echo requests/replies
   	}
 	
 	uint32_t ip_src = iphdr->ip_src;
@@ -119,11 +119,11 @@ bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 	//update connection state
 	update_icmp_connection(map);
 
-	return true;
+	return nat_action_route;
 }
 
 
-bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
+nat_action_type handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
 {
 	DebugNAT("+++ NAT handling inbound ICMP +++\n");
 	unsigned int iplen = ntohs(iphdr->ip_len);
@@ -133,7 +133,7 @@ bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
   	if ((icmphdr->icmp_type != icmp_type_echoreply) &&
   		(icmphdr->icmp_type != icmp_type_echoreq)) {
   		DebugNAT("+++ Unsupported ICMP type. +++\n");
-  		return false; //ignore icmp packets other then echo requests/replies
+  		return nat_action_drop; //ignore icmp packets other then echo requests/replies
   	}
 	
 	//uint32_t ip_src = ntohl(iphdr->ip_src);
@@ -145,7 +145,7 @@ bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 	//do not accept connections from unmapped ports
 	if (map == NULL) {
 		DebugNAT("+++ Segment addressed to unmapped id ++\n");
-		return true; //allow router to generate host unreachable ICMP
+		return nat_action_route; //packet addressed to router itself
 	}
 
 	//translate entry

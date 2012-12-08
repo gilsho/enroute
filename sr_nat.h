@@ -23,6 +23,13 @@
 #define DEFAULT_TCP_TRANSITORY_TIMEOUT (4*60)
 #define DEFAULT_ICMP_TIMEOUT 60
 
+
+typedef enum {
+  nat_action_route,
+  nat_action_unrch,
+  nat_action_drop,
+} nat_action_type;
+
 typedef enum {
   nat_mapping_icmp,
   nat_mapping_tcp
@@ -114,7 +121,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   sr_nat_mapping_type type );
 
 
-bool do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface); //CLEANUP
+nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface); //CLEANUP
 
 void sr_nat_insert_pending_syn(struct sr_nat *nat, sr_ip_hdr_t *iphdr); //CLEANUP
 

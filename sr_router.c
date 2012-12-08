@@ -789,9 +789,16 @@ void handle_ip_packet(struct sr_instance* sr, sr_ethernet_hdr_t *frame, unsigned
 
 	//perform NAT operations if necessary
 	if (sr->nat_enabled) {
-		if (!do_nat(sr,iphdr,iface)) {
-			Debug("--Dropping frame as instructed to by NAT.\n");
-			return;
+		switch(do_nat(sr,iphdr,iface)) {
+			case nat_action_drop:
+				Debug("--Dropping frame as instructed to by NAT.\n");
+				return;
+			case nat_action_unrch:
+				Debug("--Generating ICMP host unreachable as instructed to by NAT.\n");
+				send_ICMP_host_unreachable(sr,iphdr,iface);
+				return;
+			case nat_action_route:
+				break;
 		}
 	}
 
@@ -850,7 +857,6 @@ void sr_handlepacket(struct sr_instance* sr,
   	
   	//log incoming frame
 	DebugFrame(packet,len);
-
 
   	/* fill in code here */
   	sr_if_t *iface = sr_get_interface(sr,interface);

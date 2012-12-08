@@ -216,24 +216,25 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   return mapping;
 }
 
-bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
+nat_action_type do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 { 
   DebugNAT("+++ Applying internal NAT interface logic +++\n");
   if (destined_to_nat(sr,iphdr->ip_dst)) {
     //hairpinning not supported
     DebugNAT("+++ Potential hairpinning detected. assuming NAT is final destination. +++\n");
-    return true;
+    return nat_action_route;
   }
 
 
   sr_rt_t *best_match = NULL;
   if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match))
-    return true;  //no match in routing table. need to generate ICMP host unreachable
-                  //no action required on behalf of the NAT
+    return nat_action_route;  //no match in routing table. need to generate ICMP host unreachable
+                              //no action required on behalf of the NAT. no objection by the nat
+                              //to routing the packet. let router figure out his response
   
   if  (strcmp(best_match->interface,iface->name)==0)
-    return true;  //routing back on same interface: internal->internal.
-                  //no action required on behalf of the NAT
+    return nat_action_route;  //routing back on same interface: internal->internal.
+                              //no action required on behalf of the NAT
 
   DebugNAT("+++ Outbound packet crossing NAT. handling... +++\n");
   //packet crossing the NAT outbound
@@ -243,11 +244,11 @@ bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
   if (iphdr->ip_p == ip_protocol_tcp) //TCP
      return handle_outgoing_tcp(sr,iphdr);
 
-  return false; //drop packet if not TCP/ICMP
+  return nat_action_drop; //drop packet if not TCP/ICMP
        
 }
 
-bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
+nat_action_type do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 {
   DebugNAT("+++ Applying external NAT interface logic +++\n");
   if (destined_to_nat(sr,iphdr->ip_dst)) {
@@ -259,26 +260,27 @@ bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
     if (iphdr->ip_p == ip_protocol_tcp) //TCP
       return handle_incoming_tcp(&sr->nat,iphdr);
     
-    return false; //drop packet if not TCP/ICMP
+    return nat_action_drop; //drop packet if not TCP/ICMP
   } 
 
 
   sr_rt_t *best_match = NULL;
   if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match)) 
-    return true;  //no match in routing table. need to generate ICMP host unreachable
-                  //no action required on behalf of the NAT
+    return nat_action_route;  //no match in routing table. need to generate ICMP host unreachable
+                              //no action required on behalf of the NAT
+                              //return route. let router figure out what he needs to do.
 
   if  (strcmp(best_match->interface,iface->name)==0)
-    return true;  //routing back on same interface: external->external.
+    return nat_action_route;  //routing back on same interface: external->external.
                   //no action required on behalf of the NAT
 
   DebugNAT("+++ Packet destined directly to internal interface. drop.. +++\n");
-  return false; //packets looking to access interfaces behind NAT directly
-                //should be dropped
+  return nat_action_unrch; //ICMP host unreachable should be sent to packets trying to
+                            //access hosts behind the NAT directly
 }
 
 //return true if router needs to process packet after function returns
-bool do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
+nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
 
   if(!sr->nat_enabled) {
@@ -292,14 +294,14 @@ bool do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
   struct sr_nat *nat = &(sr->nat);
   pthread_mutex_lock(&(nat->lock));
-  bool routing_required = true;
+  nat_action_type natact = nat_action_route;
 
   if (received_external(nat,iface) ) {
     //received on external interface
-    routing_required = do_nat_external(sr,iphdr,iface);
+    natact = do_nat_external(sr,iphdr,iface);
   } else {
     //received on internal interface
-    routing_required = do_nat_internal(sr,iphdr,iface);
+    natact = do_nat_internal(sr,iphdr,iface);
   }
 
   //recompute checksum to account for changes made
@@ -307,14 +309,12 @@ bool do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
   iphdr->ip_sum = 0;
   iphdr->ip_sum = cksum(iphdr,iplen);
 
-  if (routing_required) {
-    DebugNAT(" +++ Translated packet to:\n");
-    DebugNATPacket(iphdr);
-  }
+  DebugNAT(" +++ Translated packet to:\n");
+  DebugNATPacket(iphdr);
 
   pthread_mutex_unlock(&(nat->lock));
 
-  return routing_required;
+  return natact;
 
 }
 

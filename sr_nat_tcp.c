@@ -93,7 +93,7 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
 }
 
 
-bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
+nat_action_type handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
 {
 	DebugNAT("+++ NAT handling outbound TCP segment. +++\n");
 	struct sr_nat *nat = &sr->nat;
@@ -119,10 +119,10 @@ bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 	//update connection state
 	update_tcp_connection(map,ip_dst,aux_dst,tcphdr,false);
 
-  	return true;
+  	return nat_action_route;
 }
 
-bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
+nat_action_type handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
 {
 	DebugNAT("+++ NAT handling inbound TCP segment +++\n");
 	unsigned int iplen = ntohs(iphdr->ip_len);
@@ -144,9 +144,9 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
     		//unsolicited syn segment
 			sr_nat_insert_pending_syn(nat,iphdr);
 			DebugNAT("+++ Unsolicited SYN segment. Dropping response.\n");
-			return false;
+			return nat_action_drop;
   		}
-  		return true; //destined to NAT device. 'handle_ip' should take 
+  		return nat_action_route; //destined to NAT device. 'handle_ip' should take 
   					 //care of processing the packet
 	} 
 
@@ -156,7 +156,7 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 	//update connection state
 	update_tcp_connection(map,ip_src,aux_src,tcphdr,true); 	
 
-  	return true;
+  	return nat_action_route;
 }
 
 
