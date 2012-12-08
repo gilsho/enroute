@@ -224,7 +224,10 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
     return true;
   }
 
-  Debug("+++++++ Processin NAT Logic +++++++\n");
+  DebugNAT("+++++++ Processin NAT Logic +++++++\n");
+
+  DebugNAT(" +++ Original packet is:\n");
+  DebugNATPacket(iphdr);
 
   struct sr_nat *nat = &(sr->nat);
   pthread_mutex_lock(&(nat->lock));
@@ -254,7 +257,7 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
     if (destined_to_nat(sr,ip_dst)) {
       //hairpinning not supported
-      Debug("+++ Hairpinning detected. unsupported feature. +++\n");
+      DebugNAT("+++ Hairpinning detected. unsupported feature. +++\n");
       routing_required = false;
     } else {
       if (longest_prefix_match(sr->routing_table, ip_dst,&best_match) && 
@@ -276,6 +279,11 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
   unsigned int iplen = ntohs(iphdr->ip_len);
   iphdr->ip_sum = 0;
   iphdr->ip_sum = cksum(iphdr,iplen);
+
+  if (routing_required) {
+    DebugNAT(" +++ Translated packet to:\n");
+    DebugNATPacket(iphdr);
+  }
 
   pthread_mutex_unlock(&(nat->lock));
 

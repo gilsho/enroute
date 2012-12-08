@@ -82,18 +82,18 @@
 /* TCP Header structure as per RFC 793
    obtained from:  http://simplestcodings.blogspot.com/2010/10/tcp-header-format.html */
 struct sr_tcp_hdr {
- u_short th_sport;  /* source port */
- u_short th_dport;  /* destination port */
+ uint16_t th_sport;  /* source port */
+ uint16_t th_dport;  /* destination port */
  uint32_t th_seq;   /* sequence number */
  uint32_t th_ack;   /* acknowledgement number */
 #if __BYTE_ORDER == __LITTLE_ENDIAN
- u_int th_x2:4,  /* (unused) */
+ uint8_t th_x2:4,  /* (unused) */
   th_off:4;  /* data offset */
 #elif __BYTE_ORDER == __BIG_ENDIAN
- u_int th_off:4,  /* data offset */
+ uint8_t th_off:4,  /* data offset */
   th_x2:4;  /* (unused) */
 #endif
- u_char th_flags;
+ uint8_t th_flags;
 #define TH_FIN 0x01
 #define TH_SYN 0x02
 #define TH_RST 0x04
@@ -104,9 +104,9 @@ struct sr_tcp_hdr {
 #define TH_CWR 0x80
 #define TH_FLAGS (TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG|TH_ECE|TH_CWR)
  
- u_short th_win;   /* window */
- u_short th_sum;   /* checksum */
- u_short th_urp;   /* urgent pointer */
+ uint16_t th_win;   /* window */
+ uint16_t th_sum;   /* checksum */
+ uint16_t th_urp;   /* urgent pointer */
 } __attribute__ ((packed)) ;
 typedef struct sr_tcp_hdr sr_tcp_hdr_t;
 

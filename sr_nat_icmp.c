@@ -79,7 +79,7 @@ void update_icmp_connection(sr_nat_mapping_t *map)
 
 bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
 {
-	Debug("+++ NAT handling outbound ICMP +++\n");
+	DebugNAT("+++ NAT handling outbound ICMP +++\n");
 	struct sr_nat *nat = &sr->nat;
 	unsigned int iplen = ntohs(iphdr->ip_len);
   	unsigned int icmplen = 0;
@@ -87,7 +87,7 @@ bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 
   	if ((icmphdr->icmp_type != icmp_type_echoreply) &&
   		(icmphdr->icmp_type != icmp_type_echoreq)) {
-  		Debug("+++ Unsupported ICMP type. +++\n");
+  		DebugNAT("+++ Unsupported ICMP type. +++\n");
   		return false; //ignore icmp packets other then echo requests/replies
   	}
 	
@@ -100,7 +100,7 @@ bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 	if (map == NULL) {
 		//insert new mapping into the translation table
 		map = sr_nat_insert_mapping(sr,ip_src,aux_src,0,0,nat_mapping_icmp);
-		Debug("+++ Creating NAT mapping from id [%d] to [%d]. +++\n",aux_src,map->aux_ext);
+		DebugNAT("+++ Creating NAT mapping from id [%d] to [%d]. +++\n",aux_src,map->aux_ext);
 	}
 	//translate entry
 	translate_outgoing_icmp(iphdr,map);
@@ -113,14 +113,14 @@ bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 
 bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
 {
-	Debug("+++ NAT handling inbound ICMP +++\n");
+	DebugNAT("+++ NAT handling inbound ICMP +++\n");
 	unsigned int iplen = ntohs(iphdr->ip_len);
   	unsigned int icmplen = 0;
   	sr_icmp_echo_hdr_t *icmphdr = (sr_icmp_echo_hdr_t *) extract_ip_payload(iphdr, iplen, &icmplen);  
 
   	if ((icmphdr->icmp_type != icmp_type_echoreply) &&
   		(icmphdr->icmp_type != icmp_type_echoreq)) {
-  		Debug("+++ Unsupported ICMP type. +++\n");
+  		DebugNAT("+++ Unsupported ICMP type. +++\n");
   		return false; //ignore icmp packets other then echo requests/replies
   	}
 	
@@ -132,13 +132,13 @@ bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	//do not accept connections from unmapped ports
 	if (map == NULL) {
-		Debug("+++ Segment addressed to unmapped id ++");
+		DebugNAT("+++ Segment addressed to unmapped id ++");
 		return false;
 	}
 
 	//translate entry
 	translate_incoming_icmp(iphdr,map);
-	Debug("+++ Mapping fid [%d] to [%d]. +++\n",aux_dst,map->aux_int);
+	DebugNAT("+++ Mapping fid [%d] to [%d]. +++\n",aux_dst,map->aux_int);
 	//update connection state
 	update_icmp_connection(map);	
 

@@ -183,3 +183,40 @@ void print_hdrs(uint8_t *buf, uint32_t length) {
   }
 }
 
+
+/* Prints out fields in IP header. */
+void print_hdr_tcp(uint8_t *buf) {
+  sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *)(buf);
+  fprintf(stderr, "TCP header:\n");
+  fprintf(stderr, "\tsource port: %d\n", ntohs(tcphdr->th_sport));
+  fprintf(stderr, "\tdestination port: %d\n", ntohs(tcphdr->th_dport));
+  fprintf(stderr, "\tsequence number: %d\n", ntohl(tcphdr->th_seq));
+  fprintf(stderr, "\tack number: %d\n", ntohl(tcphdr->th_ack));
+  fprintf(stderr, "\tflags: "); 
+  if (tcphdr->th_flags & TH_SYN) fprintf(stderr, "SYN |");
+  if (tcphdr->th_flags & TH_FIN) fprintf(stderr, "FIN |");
+  if (tcphdr->th_flags & TH_RST) fprintf(stderr, "RST |");
+  if (tcphdr->th_flags & TH_ACK) fprintf(stderr, "ACK |");
+  if (tcphdr->th_flags & TH_URG) fprintf(stderr, "URG |");
+  if (tcphdr->th_flags & TH_PUSH) fprintf(stderr, "PUSH |");
+  if (tcphdr->th_flags & TH_ECE) fprintf(stderr, "ECE |");
+  if (tcphdr->th_flags & TH_CWR) fprintf(stderr, "CWR |");
+  fprintf(stderr, "\n");
+  fprintf(stderr, "\twindow: %d\n", tcphdr->th_win);
+  fprintf(stderr, "\tchecksum: %d\n", tcphdr->th_sum);
+}
+
+void print_ip_full(uint8_t *buf) 
+{
+
+  print_hdr_ip(buf + sizeof(sr_ethernet_hdr_t));
+  uint8_t ip_proto = ip_protocol(buf + sizeof(sr_ethernet_hdr_t));
+
+  if (ip_proto == ip_protocol_icmp) { /* ICMP */
+    print_hdr_icmp(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+  } else if (ip_proto == ip_protocol_tcp) {
+    print_hdr_tcp(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+  }
+
+}
+

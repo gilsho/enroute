@@ -36,20 +36,20 @@ bool destined_to_nat(struct sr_instance* sr, uint32_t ip_dst) {
 
 bool is_tcp_syn(sr_tcp_hdr_t *tcphdr) 
 {
-	return (tcphdr->th_flags && TH_SYN);
+	return (tcphdr->th_flags & TH_SYN);
 }
 
 bool is_tcp_ack(sr_tcp_hdr_t *tcphdr) 
 {
-	return (tcphdr->th_flags && TH_ACK);
+	return (tcphdr->th_flags & TH_ACK);
 }
 
 bool is_tcp_fin(sr_tcp_hdr_t *tcphdr) 
 {
-	return (tcphdr->th_flags && TH_FIN);
+	return (tcphdr->th_flags & TH_FIN);
 }
 
 bool is_tcp_rst(sr_tcp_hdr_t *tcphdr) 
 {
-	return (tcphdr->th_flags && TH_RST);
+	return (tcphdr->th_flags & TH_RST);
 }

@@ -8,6 +8,13 @@
 #include <stdbool.h>
 #include "sr_if.h"
 
+#ifdef _DEBUG_NAT_
+#define DebugNAT(x, args...) fprintf(stderr, x, ## args)
+#define DebugNATPacket(pkt) print_ip_full((uint8_t *)pkt)
+#else
+#define DebugNAT(x, args...) 
+#define DebugNATPacket(pkt) 
+#endif
 
 
 #define DEFAULT_TCP_ESTABLISHED_TIMEOUT (2*64*60)
