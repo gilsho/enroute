@@ -582,6 +582,7 @@ void wrap_ip_packet(struct sr_instance *sr,uint8_t *payload, unsigned int pyldle
 
 void send_ICMP_ttl_exceeded(struct sr_instance *sr, sr_ip_hdr_t *recv_iphdr,sr_if_t *iface)
 {
+
   	sr_icmp_t3_hdr_t *icmp3hdr = (sr_icmp_t3_hdr_t *) malloc(ICMP_PACKET_SIZE);
   	memset(icmp3hdr,0,ICMP_PACKET_SIZE);
 
@@ -621,6 +622,7 @@ void send_ICMP_ttl_exceeded(struct sr_instance *sr, sr_ip_hdr_t *recv_iphdr,sr_i
 
 void send_ICMP_host_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr, sr_if_t *iface)
 {
+	Debug("--Sending ICMP host unreachable\n");
 	sr_icmp_t3_hdr_t *icmp3hdr = (sr_icmp_t3_hdr_t *) malloc(ICMP_PACKET_SIZE);
 	memset(icmp3hdr,0,ICMP_PACKET_SIZE);
 
@@ -660,6 +662,7 @@ void send_ICMP_host_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr, 
 
 void send_ICMP_port_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,sr_if_t *iface)
 {
+	Debug("--Sending ICMP port unreachable message\n");
 	sr_icmp_t3_hdr_t *icmp3hdr = (sr_icmp_t3_hdr_t *) malloc(ICMP_PACKET_SIZE);
 	memset(icmp3hdr,0,ICMP_PACKET_SIZE);
 
@@ -699,7 +702,7 @@ void send_ICMP_port_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,s
 
 void send_ICMP_echoreply(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,sr_if_t *iface)
 {
-
+	Debug("--Sending ICMP echo reply\n");
 	unsigned int icmp_len = 0;
 
 	sr_icmp_hdr_t *recv_icmphdr = (sr_icmp_hdr_t *) extract_ip_payload(recv_iphdr,ntohs(recv_iphdr->ip_len),&icmp_len);

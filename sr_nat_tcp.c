@@ -82,6 +82,7 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
 
 bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr) 
 {
+	Debug("+++ NAT handling outbound TCP segment. +++\n");
 	struct sr_nat *nat = &sr->nat;
 	unsigned int iplen = ntohs(iphdr->ip_len);
   	unsigned int tcplen = 0;
@@ -97,10 +98,12 @@ bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 
 	if (map == NULL) {
 		//insert new mapping into the translation table
+		Debug("+++ Creating NAT mapping from port [%d] to [%d]. +++\n",aux_src,map->aux_ext);
 		map = sr_nat_insert_mapping(sr,ip_src,aux_src,ip_dst,aux_dst,nat_mapping_tcp);
 	}
 	//translate entry
 	translate_outgoing_tcp(iphdr,map);
+	Debug("+++ Translating port [%d] to [%d]. +++\n",map->aux_int,map->aux_ext);
 	//update connection state
 	update_tcp_connection(map,ip_dst,aux_dst,tcphdr,false);
 
@@ -109,6 +112,7 @@ bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 
 bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
 {
+	Debug("+++ NAT handling inbound TCP segment +++\n");
 	unsigned int iplen = ntohs(iphdr->ip_len);
   	unsigned int tcplen = 0;
   	sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);  
@@ -123,9 +127,11 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
   	//packet addressed to unmapped port
 	if (map == NULL) {
+		Debug("+++ Segment received on unmatched port +++\n");
 		if (is_tcp_syn(tcphdr)) {
     		//unsolicited syn segment
 			sr_nat_insert_pending_syn(nat,iphdr);
+			Debug("+++ Unsolicited SYN segment. Dropping response.\n",aux_src,map->aux_ext);
 			return false;
   		}
   		return true; //destined to NAT device. 'handle_ip' should take 
@@ -134,6 +140,7 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	//translate entry
 	translate_incoming_tcp(iphdr,map);
+	Debug("+++ Translating port [%d] to [%d]. +++\n",aux_src,map->aux_ext);
 
 	//update connection state
 	update_tcp_connection(map,ip_src,aux_src,tcphdr,true); 	
