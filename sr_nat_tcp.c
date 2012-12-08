@@ -131,7 +131,7 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 		if (is_tcp_syn(tcphdr)) {
     		//unsolicited syn segment
 			sr_nat_insert_pending_syn(nat,iphdr);
-			Debug("+++ Unsolicited SYN segment. Dropping response.\n",aux_src,map->aux_ext);
+			Debug("+++ Unsolicited SYN segment. Dropping response.\n");
 			return false;
   		}
   		return true; //destined to NAT device. 'handle_ip' should take 

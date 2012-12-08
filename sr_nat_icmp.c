@@ -132,7 +132,7 @@ bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	//do not accept connections from unmapped ports
 	if (map == NULL) {
-		Debug("+++ Segment addressed to unmapped id ++",aux_src,map->aux_ext);
+		Debug("+++ Segment addressed to unmapped id ++");
 		return false;
 	}
 
