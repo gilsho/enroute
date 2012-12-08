@@ -112,7 +112,7 @@ nat_action_type handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 	if (map == NULL) {
 		//insert new mapping into the translation table
 		map = sr_nat_insert_mapping(sr,ip_src,aux_src,0,0,nat_mapping_icmp);
-		DebugNAT("+++ Creating NAT mapping from id [%d] to [%d]. +++\n",ntohs(aux_src),ntohs(map->aux_ext));
+		DebugNAT("+++ Created NAT mapping from id [%d] to [%d]. +++\n",ntohs(map->aux_int),ntohs(map->aux_ext));
 	}
 	//translate entry
 	translate_outgoing_icmp(iphdr,map);

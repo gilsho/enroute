@@ -111,8 +111,8 @@ nat_action_type handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 
 	if (map == NULL) {
 		//insert new mapping into the translation table
-		DebugNAT("+++ Creating NAT mapping from port [%d] to [%d]. +++\n",ntohs(aux_src),ntohs(map->aux_ext));
 		map = sr_nat_insert_mapping(sr,ip_src,aux_src,ip_dst,aux_dst,nat_mapping_tcp);
+		DebugNAT("+++ Created NAT mapping from port [%d] to [%d]. +++\n",ntohs(map->aux_int),ntohs(map->aux_ext));
 	}
 	//translate entry
 	translate_outgoing_tcp(iphdr,map);
