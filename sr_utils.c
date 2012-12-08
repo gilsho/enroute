@@ -185,6 +185,13 @@ void print_hdrs(uint8_t *buf, uint32_t length) {
         fprintf(stderr, "Failed to print ICMP header, insufficient length\n");
       else
         print_hdr_icmp(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+    } else if (ip_proto == ip_protocol_tcp) {
+      minlength += sizeof(sr_tcp_hdr_t);
+      if (length < minlength)
+        fprintf(stderr, "Failed to print TCP header, insufficient length\n");
+      else
+        print_hdr_tcp(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+
     }
   }
   else if (ethtype == ethertype_arp) { /* ARP */
