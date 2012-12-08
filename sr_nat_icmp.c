@@ -19,9 +19,11 @@ void translate_outgoing_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
 
   //translate src ip address to appear as if packet
   //originated from NAT
-  iphdr->ip_src = htonl(map->ip_ext);
+  DebugNAT("+++ Translating source IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_src),ntohl(map->ip_ext));
+  iphdr->ip_src = map->ip_ext;
 
-  echohdr->icmp_id = htons(map->aux_ext);
+  DebugNAT("+++ Translating ID from [%d] to [%d]. +++\n",ntohs(echohdr->icmp_id),ntohs(map->aux_ext));
+  echohdr->icmp_id = map->aux_ext;
   
   //recompute icmp checksum
   echohdr->icmp_sum = 0;
@@ -52,9 +54,11 @@ void translate_incoming_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
   sr_icmp_echo_hdr_t *echohdr = (sr_icmp_echo_hdr_t *) icmphdr; 
 
   //translate destination ip address to private destination of destination host
-  iphdr->ip_dst = htonl(map->ip_int);
+  DebugNAT("+++ Translating destination IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_dst),ntohl(map->ip_int));
+  iphdr->ip_dst = map->ip_int;
 
-  echohdr->icmp_id = htons(map->aux_int);
+  DebugNAT("+++ Translating ID from [%d] to [%d]. +++\n",ntohs(echohdr->icmp_id),ntohs(map->aux_int));
+  echohdr->icmp_id = map->aux_int;
   
   //recompute icmp checksum
   echohdr->icmp_sum = 0;
@@ -100,7 +104,7 @@ bool handle_outgoing_icmp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 	if (map == NULL) {
 		//insert new mapping into the translation table
 		map = sr_nat_insert_mapping(sr,ip_src,aux_src,0,0,nat_mapping_icmp);
-		DebugNAT("+++ Creating NAT mapping from id [%d] to [%d]. +++\n",aux_src,map->aux_ext);
+		DebugNAT("+++ Creating NAT mapping from id [%d] to [%d]. +++\n",ntohs(aux_src),ntohs(map->aux_ext));
 	}
 	//translate entry
 	translate_outgoing_icmp(iphdr,map);
@@ -138,7 +142,7 @@ bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	//translate entry
 	translate_incoming_icmp(iphdr,map);
-	DebugNAT("+++ Mapping fid [%d] to [%d]. +++\n",aux_dst,map->aux_int);
+	DebugNAT("+++ Mapping id [%d] to [%d]. +++\n",ntohs(aux_dst),ntohs(map->aux_int));
 	//update connection state
 	update_icmp_connection(map);	
 

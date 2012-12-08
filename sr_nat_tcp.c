@@ -11,14 +11,16 @@ void translate_outgoing_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
   assert(map->type == nat_mapping_tcp);
 
   //translate src ip address to NAT's external ip
-  iphdr->ip_src = htonl(map->ip_ext);
+  DebugNAT("+++ Translating source IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_src),ntohl(map->ip_ext));
+  iphdr->ip_src = map->ip_ext;
 
   unsigned int iplen = ntohs(iphdr->ip_len);
   unsigned int tcplen = 0;
   sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);
 
   //translate port
-  tcphdr->th_sport = htons(map->aux_ext);
+  DebugNAT("+++ Translating source port from [%d] to [%d]. +++\n",ntohs(tcphdr->th_sport),ntohs(map->aux_ext));
+  tcphdr->th_sport = map->aux_ext;
 
   //compute tcp checksum
   tcphdr->th_sum = 0;
@@ -39,14 +41,17 @@ void translate_incoming_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
   assert(map->type == nat_mapping_tcp);
 
   //translate src ip address to NAT's external ip
-  iphdr->ip_dst = htonl(map->ip_int);
+  DebugNAT("+++ Translating destination IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_dst),ntohl(map->ip_int));
+  iphdr->ip_dst = map->ip_int;
 
   unsigned int iplen = ntohs(iphdr->ip_len);
   unsigned int tcplen = 0;
   sr_tcp_hdr_t *tcphdr = (sr_tcp_hdr_t *) extract_ip_payload(iphdr, iplen, &tcplen);
 
   //translate port
-  tcphdr->th_dport = htons(map->aux_int);
+  DebugNAT("+++ Translating destination port from [%d] to [%d]. +++\n",ntohs(tcphdr->th_dport),ntohs(map->aux_int));
+  tcphdr->th_dport = map->aux_int;
+
 
   //compute tcp checksum
   tcphdr->th_sum = 0;
@@ -98,12 +103,11 @@ bool handle_outgoing_tcp(struct sr_instance *sr, sr_ip_hdr_t *iphdr)
 
 	if (map == NULL) {
 		//insert new mapping into the translation table
-		DebugNAT("+++ Creating NAT mapping from port [%d] to [%d]. +++\n",aux_src,map->aux_ext);
+		DebugNAT("+++ Creating NAT mapping from port [%d] to [%d]. +++\n",ntohs(aux_src),ntohs(map->aux_ext));
 		map = sr_nat_insert_mapping(sr,ip_src,aux_src,ip_dst,aux_dst,nat_mapping_tcp);
 	}
 	//translate entry
 	translate_outgoing_tcp(iphdr,map);
-	DebugNAT("+++ Translating port [%d] to [%d]. +++\n",map->aux_int,map->aux_ext);
 	//update connection state
 	update_tcp_connection(map,ip_dst,aux_dst,tcphdr,false);
 
@@ -140,7 +144,7 @@ bool handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	//translate entry
 	translate_incoming_tcp(iphdr,map);
-	DebugNAT("+++ Translating port [%d] to [%d]. +++\n",aux_src,map->aux_ext);
+	DebugNAT("+++ Translating port [%d] to [%d]. +++\n",ntohs(aux_src),ntohs(map->aux_ext));
 
 	//update connection state
 	update_tcp_connection(map,ip_src,aux_src,tcphdr,true); 	

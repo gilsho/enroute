@@ -31,7 +31,7 @@ bool received_external(struct sr_nat *nat, sr_if_t *recv_iface) {
 bool destined_to_nat(struct sr_instance* sr, uint32_t ip_dst) {
 	sr_if_t *ext_iface = sr_get_interface(sr,sr->nat.ext_iface_name);
 	assert(ext_iface != NULL);
-    return (ip_dst == ntohl(ext_iface->ip)); //iface is stored in network byte order
+    return (ip_dst == ext_iface->ip);
 }
 
 bool is_tcp_syn(sr_tcp_hdr_t *tcphdr) 

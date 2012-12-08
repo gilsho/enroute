@@ -194,7 +194,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   mapping->type = type;
   mapping->ip_int = ip_int;
   mapping->aux_int = aux_int;
-  mapping->ip_ext = ntohl(ext_iface->ip);
+  mapping->ip_ext = ext_iface->ip;
   mapping->aux_ext = rand_unused_aux(nat,type);
   mapping->last_updated = current_time();
   if (type == nat_mapping_tcp) {
@@ -219,7 +219,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
 bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 { 
   DebugNAT("+++ Applying internal NAT interface logic +++\n");
-  if (destined_to_nat(sr,ip_dst)) {
+  if (destined_to_nat(sr,iphdr->ip_dst)) {
     //hairpinning not supported
     DebugNAT("+++ Potential hairpinning detected. assuming NAT is final destination. +++\n");
     return true;
@@ -250,7 +250,7 @@ bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface)
 bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 {
   DebugNAT("+++ Applying external NAT interface logic +++\n");
-  if (destined_to_nat(sr,ip_dst)) {
+  if (destined_to_nat(sr,iphdr->ip_dst)) {
     DebugNAT("+++ Inbound packet destined to NAT. handling... +++\n");
     //destined to nat and/or private network behind it
     if (iphdr->ip_p == ip_protocol_icmp) //ICMP
