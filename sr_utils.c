@@ -114,6 +114,16 @@ void print_hdr_icmp(uint8_t *buf) {
   fprintf(stderr, "ICMP header:\n");
   fprintf(stderr, "\ttype: %d\n", icmp_hdr->icmp_type);
   fprintf(stderr, "\tcode: %d\n", icmp_hdr->icmp_code);
+
+  //print if and seq no. for echo request and reply
+  if ((icmp_hdr->icmp_type != icmp_type_echoreq) || 
+      (icmp_hdr->icmp_type != icmp_type_echoreply)) {
+      
+    sr_icmp_echo_hdr_t *echo_hdr = (sr_icmp_echo_hdr_t *)icmp_hdr;
+    fprintf(stderr, "\tid: %d\n",echo_hdr->icmp_id);
+    fprintf(stderr, "\tsequence number: %d\n",echo_hdr->icmp_seqno);
+  }
+
   /* Keep checksum in NBO */
   fprintf(stderr, "\tchecksum: %d\n", icmp_hdr->icmp_sum);
 }
