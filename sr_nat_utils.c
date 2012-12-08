@@ -15,7 +15,7 @@ uint16_t tcp_cksum (sr_ip_hdr_t *iphdr, sr_tcp_hdr_t *tcphdr,  unsigned int tcpl
 	data_pseudo_ip->ip_dst = iphdr->ip_dst;
 	data_pseudo_ip->empty = 0; //just in case
 	data_pseudo_ip->ip_p = tcplen;
-	data_pseudo_ip->tcp_len = ntohs(tcplen);
+	data_pseudo_ip->tcp_len = htons(tcplen);
 
 	sr_tcp_hdr_t *data_tcp = (sr_tcp_hdr_t *) (data + sizeof(sr_ip_pseudo_hdr_t));
 	memcpy(data_tcp,tcphdr,tcplen);
