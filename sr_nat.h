@@ -11,9 +11,11 @@
 #ifdef _DEBUG_NAT_
 #define DebugNAT(x, args...) fprintf(stderr, x, ## args)
 #define DebugNATPacket(pkt) print_ip_full((uint8_t *)pkt)
+#define DebugNATaddrIP(ipaddr) print_addr_ip_int(ipaddr)
 #else
 #define DebugNAT(x, args...) 
 #define DebugNATPacket(pkt) 
+#define DebugNATaddrIP(ipaddr)
 #endif
 
 

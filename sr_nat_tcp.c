@@ -11,7 +11,11 @@ void translate_outgoing_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
   assert(map->type == nat_mapping_tcp);
 
   //translate src ip address to NAT's external ip
-  DebugNAT("+++ Translating source IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_src),ntohl(map->ip_ext));
+  DebugNAT("+++ Translating source IP address from [");
+  DebugNATaddrIP(ntohl(iphdr->ip_src));
+  DebugNAT("] to [");
+  DebugNATaddrIP(ntohl(map->ip_ext));
+  DebugNAT("]. +++\n");
   iphdr->ip_src = map->ip_ext;
 
   unsigned int iplen = ntohs(iphdr->ip_len);
@@ -41,7 +45,11 @@ void translate_incoming_tcp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
   assert(map->type == nat_mapping_tcp);
 
   //translate src ip address to NAT's external ip
-  DebugNAT("+++ Translating destination IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_dst),ntohl(map->ip_int));
+  DebugNAT("+++ Translating destination IP address from [");
+  DebugNATaddrIP(ntohl(iphdr->ip_dst));
+  DebugNAT("] to [");
+  DebugNATaddrIP(ntohl(map->ip_int));
+  DebugNAT("]. +++\n");
   iphdr->ip_dst = map->ip_int;
 
   unsigned int iplen = ntohs(iphdr->ip_len);

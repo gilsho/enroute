@@ -216,6 +216,29 @@ void print_hdr_tcp(uint8_t *buf) {
   fprintf(stderr, "\tchecksum: %d\n", tcphdr->th_sum);
 }
 
+
+void str_addr_ip_int(uint32_t ip, char * ipstr) {
+  char str[MAX_IP_LENGTH];
+  for (int i=0; i<MAX_IP_LENGTH; i++)
+    str[i] = '\0';
+  
+  char *buf = str;
+  uint32_t curOctet = ip >> 24;
+  fprintf(buf, "%d.", curOctet);
+
+  buf = buf + strlen(str);
+  curOctet = (ip << 8) >> 24;
+  fprintf(stderr, "%d.", curOctet);
+
+  buf = buf + strlen(str);
+  curOctet = (ip << 16) >> 24;
+  fprintf(stderr, "%d.", curOctet);
+
+  buf = buf + strlen(str);
+  curOctet = (ip << 24) >> 24;
+  fprintf(stderr, "%d\n", curOctet);
+}
+
 void print_ip_full(uint8_t *buf) 
 {
   sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(buf);

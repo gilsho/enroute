@@ -28,6 +28,8 @@
 #ifndef SR_UTILS_H
 #define SR_UTILS_H
 
+ #define MAX_IP_LENGTH 20
+
 uint16_t cksum(const void *_data, int len);
 
 uint16_t ethertype(uint8_t *buf);
@@ -36,6 +38,7 @@ uint8_t ip_protocol(uint8_t *buf);
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);
 void print_addr_ip_int(uint32_t ip);
+void str_addr_ip_int(uint32_t ip, char * ipstr);
 
 void print_hdr_eth(uint8_t *buf);
 void print_hdr_ip(uint8_t *buf);

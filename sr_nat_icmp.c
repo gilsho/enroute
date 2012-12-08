@@ -19,7 +19,11 @@ void translate_outgoing_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
 
   //translate src ip address to appear as if packet
   //originated from NAT
-  DebugNAT("+++ Translating source IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_src),ntohl(map->ip_ext));
+  DebugNAT("+++ Translating source IP address from [");
+  DebugNATaddrIP(ntohl(iphdr->ip_src));
+  DebugNAT("] to [");
+  DebugNATaddrIP(ntohl(map->ip_ext));
+  DebugNAT("]. +++\n");
   iphdr->ip_src = map->ip_ext;
 
   DebugNAT("+++ Translating ID from [%d] to [%d]. +++\n",ntohs(echohdr->icmp_id),ntohs(map->aux_ext));
@@ -54,7 +58,11 @@ void translate_incoming_icmp(sr_ip_hdr_t *iphdr,sr_nat_mapping_t *map)
   sr_icmp_echo_hdr_t *echohdr = (sr_icmp_echo_hdr_t *) icmphdr; 
 
   //translate destination ip address to private destination of destination host
-  DebugNAT("+++ Translating destination IP address from [%d] to [%d]. +++\n",ntohl(iphdr->ip_dst),ntohl(map->ip_int));
+  DebugNAT("+++ Translating destination IP address from [");
+  DebugNATaddrIP(ntohl(iphdr->ip_dst));
+  DebugNAT("] to [");
+  DebugNATaddrIP(ntohl(map->ip_int));
+  DebugNAT("]. +++\n");
   iphdr->ip_dst = map->ip_int;
 
   DebugNAT("+++ Translating ID from [%d] to [%d]. +++\n",ntohs(echohdr->icmp_id),ntohs(map->aux_int));
@@ -136,7 +144,7 @@ bool handle_incoming_icmp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 
 	//do not accept connections from unmapped ports
 	if (map == NULL) {
-		DebugNAT("+++ Segment addressed to unmapped id ++");
+		DebugNAT("+++ Segment addressed to unmapped id ++\n");
 		return false;
 	}
 
