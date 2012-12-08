@@ -112,7 +112,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   sr_nat_mapping_type type );
 
 
-bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface); //CLEANUP
+bool do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface); //CLEANUP
 
 void sr_nat_insert_pending_syn(struct sr_nat *nat, sr_ip_hdr_t *iphdr); //CLEANUP
 

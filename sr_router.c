@@ -789,7 +789,7 @@ void handle_ip_packet(struct sr_instance* sr, sr_ethernet_hdr_t *frame, unsigned
 
 	//perform NAT operations if necessary
 	if (sr->nat_enabled) {
-		if (!do_nat_logic(sr,iphdr,iface)) {
+		if (!do_nat(sr,iphdr,iface)) {
 			Debug("--Dropping frame as instructed to by NAT.\n");
 			return;
 		}

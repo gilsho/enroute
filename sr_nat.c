@@ -216,8 +216,67 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   return mapping;
 }
 
+bool do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
+{ 
+  DebugNAT("+++ Applying internal NAT interface logic +++\n");
+  uint32_t ip_dst = ntohl(iphdr->ip_dst);
+  if (destined_to_nat(sr,ip_dst)) {
+    //hairpinning not supported
+    DebugNAT("+++ Potential hairpinning detected. assuming NAT is final destination. +++\n");
+    return true;
+  }
+
+
+  sr_rt_t *best_match = NULL;
+  if (longest_prefix_match(sr->routing_table, ip_dst,&best_match))
+    return true;  //no match in routing table. need to generate ICMP host unreachable
+                  //no action required on behalf of the NAT
+  
+  if  (strcmp(best_match->interface,iface->name)==0)
+    return true;  //routing back on same interface: internal->internal.
+                  //no action required on behalf of the NAT
+
+  DebugNAT("+++ Outbound packet crossing NAT. handling... +++\n");
+  //packet crossing the NAT outbound
+  if (iphdr->ip_p == ip_protocol_icmp) //ICMP
+    return handle_outgoing_icmp(sr,iphdr);
+  
+  if (iphdr->ip_p == ip_protocol_tcp) //TCP
+     return handle_outgoing_tcp(sr,iphdr);
+
+  return false; //drop packet if not TCP/ICMP
+       
+}
+
+bool do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
+{
+  DebugNAT("+++ Applying external NAT interface logic +++\n");
+  uint32_t ip_dst = ntohl(iphdr->ip_dst);
+  if (destined_to_nat(sr,ip_dst)) {
+    DebugNAT("+++ Inbound packet destined to NAT. handling... +++\n");
+    //destined to nat and/or private network behind it
+    if (iphdr->ip_p == ip_protocol_icmp) //ICMP
+      return handle_incoming_icmp(&sr->nat,iphdr);
+    
+    if (iphdr->ip_p == ip_protocol_tcp) //TCP
+      return handle_incoming_tcp(&sr->nat,iphdr);
+    
+    return false; //drop packet if not TCP/ICMP
+  } 
+
+
+  sr_rt_t *best_match = NULL;
+  if (longest_prefix_match(sr->routing_table, ip_dst,&best_match))
+    return true;  //routing back on same interface: external->external.
+                  //no action required on behalf of the NAT
+
+  DebugNAT("+++ Packet destined directly to internal interface. dropping... +++\n");
+  return false; //drop packet that are destined directly to 
+                //internal interface
+}
+
 //return true if router needs to process packet after function returns
-bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
+bool do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
 
   if(!sr->nat_enabled) {
@@ -233,46 +292,12 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
   pthread_mutex_lock(&(nat->lock));
   bool routing_required = true;
 
-  //uint32_t ip_src = ntohl(iphdr->ip_src);
-  uint32_t ip_dst = ntohl(iphdr->ip_dst);
-
   if (received_external(nat,iface) ) {
     //received on external interface
-
-    if (destined_to_nat(sr,ip_dst)) {
-    
-      //destined to nat and/or private network behind it
-      if (iphdr->ip_p == ip_protocol_icmp) { //ICMP
-        routing_required = handle_incoming_icmp(&sr->nat,iphdr);
-      } else if (iphdr->ip_p == ip_protocol_tcp) { //TCP
-        routing_required = handle_incoming_tcp(&sr->nat,iphdr);
-      }  else {
-        routing_required = false; //drop packet if not TCP/ICMP
-      }
-    }
-
+    routing_required = do_nat_external(sr,iphdr,iface);
   } else {
     //received on internal interface
-    sr_rt_t *best_match = NULL;
-
-    if (destined_to_nat(sr,ip_dst)) {
-      //hairpinning not supported
-      DebugNAT("+++ Hairpinning detected. unsupported feature. +++\n");
-      routing_required = false;
-    } else {
-      if (longest_prefix_match(sr->routing_table, ip_dst,&best_match) && 
-          (strcmp(best_match->interface,iface->name)!=0)) {
-
-        //packet crossing the NAT outbound
-        if (iphdr->ip_p == ip_protocol_icmp) { //ICMP
-          routing_required = handle_outgoing_icmp(sr,iphdr);
-        } else if (iphdr->ip_p == ip_protocol_tcp) { //TCP
-          routing_required = handle_outgoing_tcp(sr,iphdr);
-        }  else {
-          routing_required = false; //drop packet if not TCP/ICMP
-        }
-      }
-    }
+    routing_required = do_nat_internal(sr,iphdr,iface);
   }
 
   //recompute checksum to account for changes made
@@ -290,3 +315,6 @@ bool do_nat_logic(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
   return routing_required;
 
 }
+
+
+
