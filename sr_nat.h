@@ -16,8 +16,8 @@
 #else
 #define DebugNAT(x, args...) do {} while(0)
 #define DebugNATPacket(pkt)  do {} while(0)
-#define DebugNATaddrIP(ipaddr) do {} while(0)
-#define DebugNATaction(action) do {} while(0)
+#define DebugNATAddrIP(ipaddr) do {} while(0)
+#define DebugNATAction(action) do {} while(0)
 #endif
 
 
