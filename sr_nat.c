@@ -166,7 +166,7 @@ void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
   struct sr_nat *nat = &sr->nat;
   for (sr_nat_pending_syn_t *prevsyn = NULL, *cursyn = nat->pending_syns; cursyn != NULL;) {
     //check it enough time elapsed to generate response
-    if (!difftime(curtime, cursyn->time_received) < UNSOLICITED_SYN_TIMEOUT)
+    if (difftime(curtime, cursyn->time_received) > UNSOLICITED_SYN_TIMEOUT)
 
       //check if mapping already exists
       if (sr_nat_lookup_external(nat,cursyn->aux_ext,nat_mapping_tcp) == NULL) {
