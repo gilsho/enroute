@@ -105,7 +105,7 @@ bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
 
           DebugNAT("+++&& ");
           DebugNATCondition(tcp_state_trasnitory(curconn->state),"Transitory ");
-          DebugNATCondition(tcp_state_trasnitory(curconn->state),"Established ");
+          DebugNATCondition(tcp_state_established(curconn->state),"Established ");
           DebugNAT("connection to ip [");
           DebugNATAddrIP(curconn->dest_ip);
           DebugNAT("] and port [%d] timedout &&+++\n",ntohs(curconn->dest_port));
