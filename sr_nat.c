@@ -171,7 +171,7 @@ void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
       //check if mapping already exists
       if (sr_nat_lookup_external(nat,cursyn->aux_ext,nat_mapping_tcp) == NULL) {
 
-        DebugNAT("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext);
+        DebugNAT("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext));
         //send ICMP port unreachable
         sr_if_t *iface = sr_get_interface(sr,nat->ext_iface_name);
         send_ICMP_port_unreachable(sr,cursyn->iphdr,iface);
