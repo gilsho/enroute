@@ -40,7 +40,9 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 
 bool tcp_state_trasnitory(sr_nat_tcp_state state) 
 {
-	switch (state) {
+	return true;
+	
+	/*switch (state) {
 		case tcp_syn_recvd:
 		case tcp_syn_sent:
 		case tcp_fin_wait1:
@@ -52,5 +54,5 @@ bool tcp_state_trasnitory(sr_nat_tcp_state state)
 			return true;
 		default:
 			return false;
-	}
+	}*/
 }
