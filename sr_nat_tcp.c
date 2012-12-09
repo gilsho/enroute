@@ -89,7 +89,7 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
   				update_outgoing_tcp_state(conn,tcphdr);
   			}
   		}
-  		return;	
+  		break;	
   	}
 
   	//create new tcp connection
