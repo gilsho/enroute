@@ -6,9 +6,33 @@
 
 
 #ifdef _DEBUG_NAT_TCP_STATE_
-#define DebugTCPState(x, args...) fprintf(stderr, x, ## args)
+#define DebugTCPStatePrint(x, args...) fprintf(stderr, x, ## args)
+
+void DebugTCPState(sr_nat_connection_t *conn) 
+{
+	fprintf(stderr,"^^^^^ [");
+	print_addr_ip_int(ntohl(conn->dest_ip));	
+	"]:[%d] TCP State: [",ntohs(conn->dest_port));
+	switch(conn->state) {
+		case tcp_state_closed: 					fprintf(stderr,"CLOSED"); 						break;
+		case tcp_state_syn_recvd_processing: 	fprintf(stderr,"SYN RECEIVED (processing)"); 	break;
+		case tcp_state_listen: 					fprintf(stderr,"LISTEN");						break;
+		case tcp_state_syn_recvd:				fprintf(stderr,"SYN RECEIVED");					break;
+		case tcp_state_syn_sent:				fprintf(stderr,"SYN SENT");						break;
+		case tcp_state_established:				fprintf(stderr,"ESTABLISHEED");					break;
+		case tcp_state_fin_wait1:				fprintf(stderr,"FIN WAIT 1");					break;
+		case tcp_state_fin_wait2:				fprintf(stderr,"FIN WAIT 2");					break;
+		case tcp_state_closing:					fprintf(stderr,"CLOSING");						break;
+		case tcp_state_close_wait:				fprintf(stderr,"CLOSE WAIT");					break;
+		case tcp_state_last_ack:				fprintf(stderr,"LAST ACK");						break;
+		case tcp_state_time_wait:				fprintf(stderr,"TIME WAIT");					break;
+
+	}
+	fprintf(stderr,"] ^^^^^\n");
+}
+
 #else
-#define DebugTCPState(x, args...) do {} while(0)
+void DebugTCPState(sr_nat_connection_t *conn) {}
 #endif
 
 bool is_tcp_syn(sr_tcp_hdr_t *tcphdr) 
@@ -46,12 +70,11 @@ void init_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 {
 
 	if (!is_tcp_syn(tcphdr)) {
-		DebugTCPState("^^^^^ New incoming connection request with no SYN. TCP State: [CLOSED] ^^^^^\n");
 		conn->state = tcp_state_closed;
 		return;
 	}
 
-	DebugTCPState("^^^^^ TCP State: [SYN RECEIVED] (endhost processing) ^^^^^\n");
+	DebugTCPState(conn);
 	conn->state = tcp_state_syn_recvd_processing;
 
 	conn->fin_sent_seqno = 0;
@@ -62,12 +85,11 @@ void init_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 {
 
 	if (!is_tcp_syn(tcphdr)) {
-		DebugTCPState("^^^^^ New outgoing connection attempt with no SYN. TCP State: [CLOSED] ^^^^^\n");
 		conn->state = tcp_state_closed;
 		return;	//be very strict in adhering to tcp state diagram
 	}
 
-	DebugTCPState("^^^^^ TCP State: [SYN SENT] ^^^^^\n");
+	DebugTCPState(conn);
 	conn->state = tcp_state_syn_sent;
 	
 	conn->fin_sent_seqno = 0;
@@ -85,7 +107,6 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			//SYN+ACK in response to received SYN
 			if (is_tcp_ack(tcphdr) && is_tcp_syn(tcphdr)) {
 				conn->state = tcp_state_syn_recvd;
-				DebugTCPState("^^^^^ TCP State: [SYN RECEIVED] ^^^^^\n");
 			}
 			break;
 		
@@ -98,7 +119,6 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_fin_wait1;
 				conn->fin_sent_seqno = seqno;
-				DebugTCPState("^^^^^ TCP State: [FIN WAIT 1] ^^^^^\n");
 			}
 			break;
 
@@ -115,7 +135,6 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_last_ack;
 				conn->fin_sent_seqno = seqno;
-				DebugTCPState("^^^^^ TCP State: [LAST ACK] ^^^^^\n");				
 			}
 			break;
 		
@@ -123,6 +142,7 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			break;
 
 	}
+	DebugTCPState(conn);
 
 }
 
@@ -142,21 +162,19 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				if (is_tcp_ack(tcphdr)) {
 					//SYN+ACK: end host acknowledged SYN sent plus sent his own SYN
 					conn->state = tcp_state_established;
-					DebugTCPState("^^^^^ TCP State: [ESTABLISHED] ^^^^^\n");
 				} else {
 					//simultaneous open: SYN from destination host was sent
 					//prior to reception of SYN from host behind NAT
 					conn->state = tcp_state_syn_recvd;
 					//re-sending SYN. no need to update connection structure.
 					//received an ack to either this or previously sent SYN would suffice
-					DebugTCPState("^^^^^ TCP State: [SYN RECEIVED] (simultaneous open) ^^^^^\n");
+					DebugTCPStatePrint("^^^^^ (simultaneous open) ^^^^^");
 				}
 			}
 			break;
 		case tcp_state_syn_recvd:
 			if (is_tcp_ack(tcphdr)) {
 				conn->state = tcp_state_established;
-				DebugTCPState("^^^^^ TCP State: [ESTABLISHED] ^^^^^\n");
 			}
 			break;
 
@@ -164,7 +182,6 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_close_wait;
 				conn->fin_recv_seqno = seqno;
-				DebugTCPState("^^^^^ TCP State: [CLOSE WAIT] ^^^^^\n");
 			}
 			break;
 
@@ -173,10 +190,8 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_time_wait;
 				conn->fin_recv_seqno = seqno;
 				//neglect intermediate transition to CLOSING if we get FIN+ACK
-				DebugTCPState("^^^^^ TCP State: [TIME WAIT] ^^^^^\n");
 			} else if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno)) {	//FIN
 				conn->state = tcp_state_fin_wait2;
-				DebugTCPState("^^^^^ TCP State: [FIN WAIT 2] ^^^^^\n");
 			}
 			break;
 
@@ -184,7 +199,6 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_time_wait;
 				conn->fin_recv_seqno = seqno;
-				DebugTCPState("^^^^^ TCP State: [TIME WAIT] ^^^^^\n");				
 			}
 			break;
 
@@ -198,8 +212,8 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 		case tcp_state_last_ack:
 			if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno))
 			break;
-			
 	}
+	DebugTCPState(conn);
 	
 }
 
