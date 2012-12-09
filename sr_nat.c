@@ -202,7 +202,7 @@ void *sr_nat_timeout(void *sr_ptr) {  /* Periodic Timout handling */
   while (1) {
     sleep(1.0);
     pthread_mutex_lock(&(nat->lock));
-
+    DebugNAT("+++&& Timeout thread awake and sweeping... &&+++");
     time_t curtime = current_time();
     nat_timeout_mappings(sr,curtime);
     nat_timeout_pending_syns(sr,curtime);
@@ -338,14 +338,18 @@ nat_action_type do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_i
 
 
   sr_rt_t *best_match = NULL;
-  if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match))
+  if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match)) {
+    DebugNAT("+++ No entry in routing table. no action required +++\n");
     return nat_action_route;  //no match in routing table. need to generate ICMP host unreachable
                               //no action required on behalf of the NAT. no objection by the nat
                               //to routing the packet. let router figure out his response
+  }
   
-  if  (strcmp(best_match->interface,iface->name)==0)
+  if  (strcmp(best_match->interface,iface->name)==0) {
+    DebugNAT("+++ Routing back on same interface: internal->internal. no action required +++\n");
     return nat_action_route;  //routing back on same interface: internal->internal.
                               //no action required on behalf of the NAT
+  }
 
   DebugNAT("+++ Outbound packet crossing NAT. handling... +++\n");
   //packet crossing the NAT outbound
@@ -376,14 +380,18 @@ nat_action_type do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_i
 
 
   sr_rt_t *best_match = NULL;
-  if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match)) 
+  if (!longest_prefix_match(sr->routing_table, iphdr->ip_dst,&best_match)) {
+    DebugNAT("+++ No entry in routing table. no action required +++\n\n");
     return nat_action_route;  //no match in routing table. need to generate ICMP host unreachable
                               //no action required on behalf of the NAT
                               //return route. let router figure out what he needs to do.
+  }
 
-  if  (strcmp(best_match->interface,iface->name)==0)
+  if  (strcmp(best_match->interface,iface->name)==0) {
+    DebugNAT("+++ Routing back on same interface: external->external. no action required +++\n");
     return nat_action_route;  //routing back on same interface: external->external.
                   //no action required on behalf of the NAT
+  }
 
   DebugNAT("+++ Packet destined directly to internal interface. refuse request +++\n");
   return nat_action_unrch; //ICMP host unreachable should be sent to packets trying to
@@ -416,7 +424,7 @@ nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *ifac
 
   DebugNAT("+++++++ Processin NAT Logic +++++++\n");
 
-  DebugNAT(" +++ Original packet:\n");
+  DebugNAT("+++ Original packet:\n");
   DebugNATPacket(iphdr);
 
   struct sr_nat *nat = &(sr->nat);
@@ -436,14 +444,14 @@ nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *ifac
   iphdr->ip_sum = 0;
   iphdr->ip_sum = cksum(iphdr,iplen);
 
-  DebugNAT(" +++ Translated packet to:\n");
+  DebugNAT("+++ Translated packet to:\n");
   DebugNATPacket(iphdr);
 
   pthread_mutex_unlock(&(nat->lock));
 
   DebugNAT("+++++++ NAT action required: ");
   DebugNATAction(natact);
-  DebugNAT("+++++++\n");
+  DebugNAT(" +++++++\n");
   return natact;
 
 }
