@@ -225,6 +225,7 @@ enum sr_icmp_type {
 };
 
 enum sr_icmp_code_dst_unrch {
+  icmp_code_dst_unrch_net   =0x00,
 	icmp_code_dst_unrch_host	=0x01,
 	icmp_code_dst_unrch_port	=0x03,
 };

@@ -45,6 +45,7 @@ void route_ip_packet(struct sr_instance *sr,sr_ip_hdr_t *iphdr,sr_if_t *in_iface
 void wrap_ip_packet(struct sr_instance *sr,uint8_t *payload, unsigned int pyldlen,
 							   uint32_t sip,uint32_t dip,uint8_t protocol,sr_if_t *iface);
 void send_ICMP_ttl_exceeded(struct sr_instance *sr, sr_ip_hdr_t *recv_iphdr,sr_if_t *iface);
+void send_ICMP_net_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr, sr_if_t *iface);
 void send_ICMP_host_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr, sr_if_t *iface);
 void send_ICMP_port_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,sr_if_t *iface);
 void send_ICMP_echoreply(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,sr_if_t *iface);
@@ -597,6 +598,47 @@ void send_ICMP_ttl_exceeded(struct sr_instance *sr, sr_ip_hdr_t *recv_iphdr,sr_i
 	uint32_t sip = iface->ip;
 	uint32_t dip = recv_iphdr->ip_src;
 
+	wrap_ip_packet(sr,(uint8_t *)icmp3hdr,ICMP_PACKET_SIZE,sip,dip,ip_protocol_icmp,iface);
+
+	free(icmp3hdr);
+}
+
+/*---------------------------------------------------------------------
+ * Method: send_ICMP_net_unreachable
+ *
+ * Scope:  Private
+ *
+ * issues an ICMP message to a host specifying the network is unreachable,
+ * meaning no appropriate entry was found in the routing table.
+ * It constructs the ICMP message and header, and lends it to 'wrap_ip' 
+ * to append an ip header ontop of it and send it. The function cleans up 
+ * after itself, freeing all the memory it has allocated.
+ * parameters:
+ *		sr 			- a reference to the router structure.
+ *		recv_iphdr 	- the ip packet that the ICMP message is to be a 
+ *					 response to.
+ *		iface 		- the interface through which the packet has been received
+ *				  	  or origniated.
+ *
+ *---------------------------------------------------------------------*/
+
+void send_ICMP_net_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr, sr_if_t *iface)
+{
+	Debug("--Sending ICMP host unreachable\n");
+	sr_icmp_t3_hdr_t *icmp3hdr = (sr_icmp_t3_hdr_t *) malloc(ICMP_PACKET_SIZE);
+	memset(icmp3hdr,0,ICMP_PACKET_SIZE);
+
+	memcpy(&icmp3hdr->data,recv_iphdr,ICMP_DATA_SIZE);
+
+	icmp3hdr->icmp_type = icmp_type_dst_unrch;
+	icmp3hdr->icmp_code = icmp_code_dst_unrch_net;
+
+	icmp3hdr->icmp_sum = 0;
+	icmp3hdr->icmp_sum = cksum(icmp3hdr,ICMP_PACKET_SIZE);
+
+	uint32_t sip = iface->ip;
+	uint32_t dip = recv_iphdr->ip_src;
+	
 	wrap_ip_packet(sr,(uint8_t *)icmp3hdr,ICMP_PACKET_SIZE,sip,dip,ip_protocol_icmp,iface);
 
 	free(icmp3hdr);
