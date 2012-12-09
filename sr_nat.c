@@ -104,7 +104,7 @@ bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
           
           DebugNAT("+++&& Connection to ip [");
           DebugNATAddrIP(curconn->dest_ip);
-          DebugNAT("] and port [%d] timedout &&+++\n",curconn->dest_port);
+          DebugNAT("] and port [%d] timedout &&+++\n",ntohs(curconn->dest_port));
 
           if (prevconn != NULL)
             prevconn->next = curconn->next;
@@ -141,9 +141,9 @@ void nat_timeout_mappings(struct sr_instance *sr, time_t curtime)
         ((curmap->type == nat_mapping_tcp)  && (nat_timeout_tcp(nat,curmap,curtime)))) {
 
         //remove mapping
-        DebugNAT("+++&& removing mapping from aux [%d] to ip [",curmap->aux_ext);
-        DebugNATAddrIP(curmap->ip_int);
-        DebugNAT("] and aux [%d] &&+++\n",curmap->aux_int);
+        DebugNAT("+++&& removing mapping from aux [%d] to ip [",ntohs(curmap->aux_ext));
+        DebugNATAddrIP(ntohl(curmap->ip_int));
+        DebugNAT("] and aux [%d] &&+++\n",ntohs(curmap->aux_int));
           
         if (prevmap != NULL)
           prevmap->next = curmap->next;
@@ -171,7 +171,7 @@ void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
       //check if mapping already exists
       if (sr_nat_lookup_external(nat,cursyn->aux_ext,nat_mapping_tcp) == NULL) {
 
-        DebugNAT("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",cursyn->aux_ext);
+        DebugNAT("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext);
         //send ICMP port unreachable
         sr_if_t *iface = sr_get_interface(sr,nat->ext_iface_name);
         send_ICMP_port_unreachable(sr,cursyn->iphdr,iface);
@@ -251,7 +251,7 @@ time_t current_time(); //defined in sr_router_utils.c. CLEANUP
 uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
 {
   static uint16_t next_aux = 1024;
-  return next_aux++;
+  return htons(next_aux++);
 }
 
 /*uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
