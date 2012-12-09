@@ -103,12 +103,12 @@ bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
         (is_tcp_conn_transitory(curconn)  && (difftime(now, map->last_updated) > nat->tcp_trans_timeout))) {
           
 
-          DebugNAT("+++&& ");
-          DebugNATCondition(is_tcp_conn_transitory(curconn),"Transitory ");
-          DebugNATCondition(is_tcp_conn_established(curconn),"Established ");
-          DebugNAT("connection to ip [");
-          DebugNATAddrIP(curconn->dest_ip);
-          DebugNAT("] and port [%d] timedout &&+++\n",ntohs(curconn->dest_port));
+          DebugNATTimeout("+++&& ");
+          DebugNATTimeoutCondition(is_tcp_conn_transitory(curconn),"Transitory ");
+          DebugNATTimeoutCondition(is_tcp_conn_established(curconn),"Established ");
+          DebugNATTimeout("connection to ip [");
+          DebugNATTimeoutAddrIP(curconn->dest_ip);
+          DebugNATTimeout("] and port [%d] timedout &&+++\n",ntohs(curconn->dest_port));
 
           if (prevconn != NULL)
             prevconn->next = curconn->next;
@@ -145,9 +145,9 @@ void nat_timeout_mappings(struct sr_instance *sr, time_t curtime)
         ((curmap->type == nat_mapping_tcp)  && (nat_timeout_tcp(nat,curmap,curtime)))) {
 
         //remove mapping
-        DebugNAT("+++&& removing mapping from aux [%d] to ip [",ntohs(curmap->aux_ext));
+        DebugNATTimeout("+++&& removing mapping from aux [%d] to ip [",ntohs(curmap->aux_ext));
         DebugNATAddrIP(ntohl(curmap->ip_int));
-        DebugNAT("] and aux [%d] &&+++\n",ntohs(curmap->aux_int));
+        DebugNATTimeout("] and aux [%d] &&+++\n",ntohs(curmap->aux_int));
           
         if (prevmap != NULL)
           prevmap->next = curmap->next;
@@ -175,7 +175,7 @@ void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
       //check if mapping already exists
       if (sr_nat_lookup_external(nat,cursyn->aux_ext,nat_mapping_tcp) == NULL) {
 
-        DebugNAT("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext));
+        DebugNATTimeout("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext));
         //send ICMP port unreachable
         sr_if_t *iface = sr_get_interface(sr,nat->ext_iface_name);
         send_ICMP_port_unreachable(sr,cursyn->iphdr,iface);

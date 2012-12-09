@@ -10,16 +10,24 @@
 
 #ifdef _DEBUG_NAT_
 #define DebugNAT(x, args...) fprintf(stderr, x, ## args)
-#define DebugNATPacket(pkt) print_ip_full((uint8_t *)pkt)
 #define DebugNATAddrIP(ipaddr) print_addr_ip_int(ipaddr)
+#define DebugNATPacket(pkt) print_ip_full((uint8_t *)pkt)
 #define DebugNATAction(action) print_nat_action(action)
-#define DebugNATCondition(cond, msg, args...) if(cond) fprintf(stderr, msg, ##args)
 #else
-#define DebugNAT(x, args...) do {} while(0)
-#define DebugNATPacket(pkt)  do {} while(0)
-#define DebugNATAddrIP(ipaddr) do {} while(0)
-#define DebugNATAction(action) do {} while(0)
-#define DebugNATCondition(cond, msg, args...) do {} while(0)
+#define DebugNAT(x, args...) 
+#define DebugNATAddrIP(ipaddr) 
+#define DebugNATPacket(pkt)  
+#define DebugNATAction(action) 
+#endif
+
+#ifdef _DEBUG_NAT_TIMEOUT_
+#define DebugNATTimeout(x, args...) fprintf(stderr, x, ## args)
+#define DebugNATTimeoutAddrIP(ipaddr) print_addr_ip_int(ipaddr)
+#define DebugNATTimeoutCondition(cond, msg, args...) if(cond) fprintf(stderr, msg, ##args)
+#else
+#define DebugNATTimeout(x, args...) 
+#define DebugNATTimeoutAddrIP(ipaddr) 
+#define DebugNATTimeoutCondition(cond, msg, args...) 
 #endif
 
 

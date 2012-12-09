@@ -5,7 +5,7 @@
 #include "sr_nat.h"
 
 
-#ifdef _DEBUG_TCP_STATE_
+#ifdef _DEBUG_NAT_TCP_STATE_
 #define DebugTCPState(x, args...) fprintf(stderr, x, ## args)
 #else
 #define DebugTCPState(x, args...) do {} while(0)
