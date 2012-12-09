@@ -92,6 +92,9 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
   		break;	
   	}
 
+  	if (conn != NULL)
+  		return;
+  	
   	//create new tcp connection
     conn = malloc(sizeof(sr_nat_connection_t));
     conn->dest_ip = ip_dst;
