@@ -202,7 +202,6 @@ void *sr_nat_timeout(void *sr_ptr) {  /* Periodic Timout handling */
   while (1) {
     sleep(1.0);
     pthread_mutex_lock(&(nat->lock));
-    DebugNAT("+++&& Timeout thread awake and sweeping... &&+++");
     time_t curtime = current_time();
     nat_timeout_mappings(sr,curtime);
     nat_timeout_pending_syns(sr,curtime);
