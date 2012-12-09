@@ -40,7 +40,7 @@ int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_e
   pthread_attr_setdetachstate(&(nat->thread_attr), PTHREAD_CREATE_JOINABLE);
   pthread_attr_setscope(&(nat->thread_attr), PTHREAD_SCOPE_SYSTEM);
   pthread_attr_setscope(&(nat->thread_attr), PTHREAD_SCOPE_SYSTEM);
-  pthread_create(&(nat->thread), &(nat->thread_attr), sr_nat_timeout, nat);
+  pthread_create(&(nat->thread), &(nat->thread_attr), sr_nat_timeout, sr);
 
   /* CAREFUL MODIFYING CODE ABOVE THIS LINE! */
 
