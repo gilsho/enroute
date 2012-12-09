@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "sr_nat.h"
+#include "sr_utils.h"
 
 
 #ifdef _DEBUG_NAT_TCP_STATE_
@@ -12,7 +13,7 @@ void DebugTCPState(sr_nat_connection_t *conn)
 {
 	fprintf(stderr,"^^^^^ [");
 	print_addr_ip_int(ntohl(conn->dest_ip));	
-	"]:[%d] TCP State: [",ntohs(conn->dest_port));
+	fprintf(stderr,"]:[%d] TCP State: [",ntohs(conn->dest_port));
 	switch(conn->state) {
 		case tcp_state_closed: 					fprintf(stderr,"CLOSED"); 						break;
 		case tcp_state_syn_recvd_processing: 	fprintf(stderr,"SYN RECEIVED (processing)"); 	break;
