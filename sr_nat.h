@@ -24,6 +24,7 @@
 #define DEFAULT_TCP_ESTABLISHED_TIMEOUT (2*64*60)
 #define DEFAULT_TCP_TRANSITORY_TIMEOUT (4*60)
 #define DEFAULT_ICMP_TIMEOUT 60
+#define UNSOLICITED_SYN_TIMEOUT 6
 
 
 typedef enum {
@@ -43,7 +44,7 @@ typedef enum {
   tcp_listen,
   tcp_syn_recvd,
   tcp_syn_sent,
-  tcp_estab,
+  tcp_established,
   tcp_fin_wait1,
   tcp_fin_wait2,
   tcp_closing,
@@ -56,6 +57,7 @@ typedef enum {
 struct sr_nat_pending_syn {
   /* add TCP connection state data members here */
   time_t time_received;
+  uint16_t aux_ext;
   sr_ip_hdr_t *iphdr;
   struct sr_nat_pending_syn *next;
 };
@@ -101,7 +103,7 @@ typedef struct sr_nat {
 } sr_nat_t;
 
 
-int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
+int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
                   time_t tcp_trans_timeout,char *ext_iface_name);     /* Initializes the nat */
 int   sr_nat_destroy(struct sr_nat *nat);  /* Destroys the nat (free memory) */
 void *sr_nat_timeout(void *nat_ptr);  /* Periodic Timout */
@@ -125,7 +127,8 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
 
 nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface); //CLEANUP
 
-void sr_nat_insert_pending_syn(struct sr_nat *nat, sr_ip_hdr_t *iphdr); //CLEANUP
+void sr_nat_insert_pending_syn(struct sr_nat *nat, uint16_t aux_ext, sr_ip_hdr_t *iphdr); //CLEANUP
 
+void send_ICMP_port_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,sr_if_t *iface);
 
 #endif

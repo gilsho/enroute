@@ -1,5 +1,8 @@
 /* handles tcp state management */
 
+
+#include <stdbool.h>
+
 /*
 struct sr_nat_connection {
    add TCP connection state data members here
@@ -27,10 +30,27 @@ typedef enum {
 
 void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr) 
 {
-
+	//if state is now closed remove it
 }
 
 void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr) 
 {
-	
+	//if state is now closed remove it
+}
+
+bool tcp_state_trasnitory(sr_nat_tcp_state state) 
+{
+	switch (state) {
+		case tcp_syn_recvd:
+		case tcp_syn_sent:
+		case tcp_fin_wait1:
+		case tcp_fin_wait2:
+		case tcp_closing:
+		case tcp_close_wait:
+		case tcp_last_ack:
+		case tcp_time_wait:
+			return true;
+		default:
+			return false;
+	}
 }

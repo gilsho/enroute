@@ -142,7 +142,7 @@ nat_action_type handle_incoming_tcp(struct sr_nat *nat, sr_ip_hdr_t *iphdr)
 		DebugNAT("+++ Segment received on unmatched port +++\n");
 		if (is_tcp_syn(tcphdr)) {
     		//unsolicited syn segment
-			sr_nat_insert_pending_syn(nat,iphdr);
+			sr_nat_insert_pending_syn(nat,aux_dst,iphdr);
 			DebugNAT("+++ Unsolicited SYN segment. Dropping response.\n");
 			return nat_action_drop;
   		}

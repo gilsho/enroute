@@ -87,7 +87,7 @@ void sr_init(struct sr_instance* sr,char * external_iface_name, bool nat_enabled
 
 	/* initialize nat */
     if (nat_enabled) {
-        sr_nat_init(&sr->nat,icmp_query_timeout,tcp_estab_timeout,tcp_trans_timeout,external_iface_name);
+        sr_nat_init(sr,icmp_query_timeout,tcp_estab_timeout,tcp_trans_timeout,external_iface_name);
     }
 
 } /* -- sr_init -- */

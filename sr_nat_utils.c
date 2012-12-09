@@ -8,7 +8,7 @@ uint16_t tcp_cksum (sr_ip_hdr_t *iphdr, sr_tcp_hdr_t *tcphdr,  unsigned int tcpl
 {
 
 	unsigned int len_total = sizeof(sr_ip_pseudo_hdr_t) + tcplen;
-  	const uint8_t *data = malloc(len_total);
+  	uint8_t *data = malloc(len_total);
   
 	sr_ip_pseudo_hdr_t *data_pseudo_ip = (sr_ip_pseudo_hdr_t *) data;
 	data_pseudo_ip->ip_src = iphdr->ip_src;
@@ -20,7 +20,11 @@ uint16_t tcp_cksum (sr_ip_hdr_t *iphdr, sr_tcp_hdr_t *tcphdr,  unsigned int tcpl
 	sr_tcp_hdr_t *data_tcp = (sr_tcp_hdr_t *) (data + sizeof(sr_ip_pseudo_hdr_t));
 	memcpy(data_tcp,tcphdr,tcplen);
 
-	return cksum(data,len_total);
+	uint16_t sum = cksum(data,len_total);
+
+	free(data);
+
+	return sum;
 
 }
 

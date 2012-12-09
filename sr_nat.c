@@ -22,9 +22,11 @@ bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct s
 
 
 
-int   sr_nat_init(struct sr_nat *nat,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
+int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
                   time_t tcp_trans_timeout,char *ext_iface_name) {
 
+  assert(sr);
+  struct sr_nat *nat = &sr->nat;
   assert(nat);
 
   /* Acquire mutex lock */
@@ -93,17 +95,119 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
 
 }
 
-void *sr_nat_timeout(void *nat_ptr) {  /* Periodic Timout handling */
-  struct sr_nat *nat = (struct sr_nat *)nat_ptr;
+
+bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
+{
+  for (sr_nat_connection_t *prevconn = NULL, *curconn = map->conns; curconn != NULL;) {
+    if (((curconn->state == tcp_established)   && (difftime(now, map->last_updated)) > nat->tcp_estab_timeout) ||
+        (tcp_state_trasnitory(curconn->state) && (difftime(now, map->last_updated) > nat->tcp_trans_timeout))) {
+          
+          DebugNAT("+++&& Connection to ip [");
+          DebugNATAddrIP(curconn->dest_ip);
+          DebugNAT("] and port [%d] timedout &&+++\n",curconn->dest_port);
+
+          if (prevconn != NULL)
+            prevconn->next = curconn->next;
+          else
+            map->conns = curconn->next;
+
+          sr_nat_connection_t *oldcur = curconn;
+          curconn = curconn->next;
+          free(oldcur);
+          continue;
+
+    }
+
+    prevconn = curconn;
+    curconn = curconn->next;
+  }
+
+  return (map->conns == NULL);
+}
+
+bool nat_timeout_icmp(struct sr_nat *nat, sr_nat_mapping_t *map, time_t now)
+{
+  return (difftime(now,map->last_updated) > nat->icmp_query_timeout);
+}
+
+
+void nat_timeout_mappings(struct sr_instance *sr, time_t curtime)
+{
+  struct sr_nat *nat = &sr->nat;
+
+  
+  for (sr_nat_mapping_t *prevmap = NULL, *curmap = nat->mappings; curmap != NULL; ) {
+    if (((curmap->type == nat_mapping_icmp) && (nat_timeout_icmp(nat,curmap,curtime))) ||
+        ((curmap->type == nat_mapping_tcp)  && (nat_timeout_tcp(nat,curmap,curtime)))) {
+
+        //remove mapping
+        DebugNAT("+++&& removing mapping from aux [%d] to ip [",curmap->aux_ext);
+        DebugNATAddrIP(curmap->ip_int);
+        DebugNAT("] and aux [%d] &&+++\n",curmap->aux_int);
+          
+        if (prevmap != NULL)
+          prevmap->next = curmap->next;
+        else
+          nat->mappings = curmap->next;
+        
+        sr_nat_mapping_t *oldcur = curmap;
+        curmap = curmap->next;
+        free(oldcur);
+        continue;
+    }
+    prevmap = curmap;
+    curmap = curmap->next;
+  }
+
+}
+
+void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
+{
+  struct sr_nat *nat = &sr->nat;
+  for (sr_nat_pending_syn_t *prevsyn = NULL, *cursyn = nat->pending_syns; cursyn != NULL;) {
+    //check it enough time elapsed to generate response
+    if (!difftime(curtime, cursyn->time_received) < UNSOLICITED_SYN_TIMEOUT)
+
+      //check if mapping already exists
+      if (sr_nat_lookup_external(nat,cursyn->aux_ext,nat_mapping_tcp) == NULL) {
+
+        DebugNAT("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",cursyn->aux_ext);
+        //send ICMP port unreachable
+        sr_if_t *iface = sr_get_interface(sr,nat->ext_iface_name);
+        send_ICMP_port_unreachable(sr,cursyn->iphdr,iface);
+    
+        //free stored ip packet
+        free(cursyn->iphdr);
+
+        //remove entry from list
+        if (prevsyn != NULL)
+          prevsyn->next = cursyn->next;
+        else
+          nat->pending_syns = cursyn->next;
+
+        sr_nat_pending_syn_t *oldcur = cursyn;
+        cursyn = cursyn->next;
+        free(oldcur);
+        continue;
+      }
+    prevsyn = cursyn;
+    cursyn = cursyn->next;
+  }
+
+}
+
+void *sr_nat_timeout(void *sr_ptr) {  /* Periodic Timout handling */
+  struct sr_instance *sr = (struct sr_instance *)sr_ptr;
+  struct sr_nat *nat = &sr->nat;
   while (1) {
     sleep(1.0);
-    //pthread_mutex_lock(&(nat->lock));
+    pthread_mutex_lock(&(nat->lock));
 
-    time_t curtime = time(NULL);
-
-    /* handle periodic tasks here */
-
-    //pthread_mutex_unlock(&(nat->lock));
+    time_t curtime = current_time();
+    nat_timeout_mappings(sr,curtime);
+    nat_timeout_pending_syns(sr,curtime);
+    
+    pthread_mutex_unlock(&(nat->lock));
   }
   return NULL;
 }
@@ -164,11 +268,12 @@ uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type)
 
 
 //make a copy of the ip packet and put it in pending list
-void sr_nat_insert_pending_syn(struct sr_nat *nat, sr_ip_hdr_t *iphdr) 
+void sr_nat_insert_pending_syn(struct sr_nat *nat, uint16_t aux_ext, sr_ip_hdr_t *iphdr) 
 {
   unsigned int iplen = ntohs(iphdr->ip_len);
   sr_nat_pending_syn_t *psyn = malloc(sizeof(sr_nat_pending_syn_t));
   psyn->time_received = current_time();
+  psyn->aux_ext = aux_ext;
   psyn->iphdr = malloc(iplen);
   memcpy(psyn->iphdr,iphdr,iplen);
 
