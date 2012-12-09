@@ -70,31 +70,32 @@ bool is_tcp_conn_transitory(sr_nat_connection_t *conn)
 void init_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr) 
 {
 
-	if (!is_tcp_syn(tcphdr)) {
+	if (is_tcp_syn(tcphdr)) {
+		conn->state = tcp_state_syn_recvd_processing;
+		conn->fin_sent_seqno = 0;
+		conn->fin_recv_seqno = 0;
+	} else {
+		//connection reset or otherwise
 		conn->state = tcp_state_closed;
-		return;
 	}
-
-	conn->state = tcp_state_syn_recvd_processing;
 	DebugTCPState(conn);
-
-	conn->fin_sent_seqno = 0;
-	conn->fin_recv_seqno = 0;
 }
 
 void init_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr) 
 {
 
-	if (!is_tcp_syn(tcphdr)) {
+	if (is_tcp_syn(tcphdr)) {
+		conn->state = tcp_state_syn_sent;
+		DebugTCPState(conn);
+		conn->fin_sent_seqno = 0;
+		conn->fin_recv_seqno = 0;
+	} else {
+		//connection reset or otherwise
+		////be very strict in adhering to tcp state diagram
 		conn->state = tcp_state_closed;
-		return;	//be very strict in adhering to tcp state diagram
 	}
-
-	conn->state = tcp_state_syn_sent;
 	DebugTCPState(conn);
-	
-	conn->fin_sent_seqno = 0;
-	conn->fin_recv_seqno = 0;
+
 }
 
 void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr) 
