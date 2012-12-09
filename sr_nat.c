@@ -251,6 +251,12 @@ time_t current_time(); //defined in sr_router_utils.c. CLEANUP
 
 uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
 {
+  static uint16_t next_aux = 1024;
+  return next_aux++;
+}
+
+/*uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
+{
   while (true) {
     uint16_t rand_aux = rand() % (MAX_AUX_VALUE - MIN_AUX_VALUE) + MIN_AUX_VALUE;
     bool unique = true;
@@ -264,7 +270,7 @@ uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type)
     if (unique) return rand_aux;
   }
 
-}
+}*/
 
 
 //make a copy of the ip packet and put it in pending list
