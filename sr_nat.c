@@ -99,8 +99,8 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
 bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
 {
   for (sr_nat_connection_t *prevconn = NULL, *curconn = map->conns; curconn != NULL;) {
-    if ((is_tcp_conn_established(curconn) && (difftime(now, map->last_updated)) > nat->tcp_estab_timeout) ||
-        (is_tcp_conn_transitory(curconn)  && (difftime(now, map->last_updated) > nat->tcp_trans_timeout))) {
+    if ((is_tcp_conn_established(curconn) && (difftime(now, curconn->last_updated)) > nat->tcp_estab_timeout) ||
+        (is_tcp_conn_transitory(curconn)  && (difftime(now, curconn->last_updated) > nat->tcp_trans_timeout))) {
           
 
           DebugNATTimeout("+++&& ");

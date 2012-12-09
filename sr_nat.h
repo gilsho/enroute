@@ -80,6 +80,7 @@ typedef struct sr_nat_pending_syn sr_nat_pending_syn_t;
 
 struct sr_nat_connection {
   /* add TCP connection state data members here */
+  time_t last_updated;  
   uint32_t dest_ip;
   uint16_t dest_port;
   uint32_t fin_sent_seqno;
@@ -95,7 +96,7 @@ struct sr_nat_mapping {
   uint32_t ip_ext; /* external ip addr */
   uint16_t aux_int; /* internal port or icmp id */
   uint16_t aux_ext; /* external port or icmp id */
-  time_t last_updated; /* use to timeout mappings */
+  time_t last_updated; /* use to timeout mappings. used only for ICMP. TCP mappings timed out by connection*/
   struct sr_nat_connection *conns; /* list of connections. null for ICMP */
   struct sr_nat_mapping *next;
 };

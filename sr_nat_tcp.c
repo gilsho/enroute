@@ -77,12 +77,16 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
 {
   	assert(map->type == nat_mapping_tcp);
 
-  	//update timestamp
-  	map->last_updated = current_time();
+  	//update timestamp for entire mapping.
+  	//since we are maintaing separate timestamps for individual connections
+  	//this value is unused
+  	time_t now = current_time();
+  	map->last_updated = now;
 
   	sr_nat_connection_t *conn;
   	for(conn = map->conns; conn != NULL; conn = conn->next) {
   		if ((ip_dst == conn->dest_ip) && (dst_port == conn->dest_port)) {
+  			conn->last_updated = current_time();
   			if (incoming) {
   				update_incoming_tcp_state(conn,tcphdr);
   			} else {
@@ -92,21 +96,23 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
   		}
   	}
 
-  	if (conn != NULL)
-  		return;
+  	if (conn == NULL) {
 
-  	//create new tcp connection
-    conn = malloc(sizeof(sr_nat_connection_t));
-    conn->dest_ip = ip_dst;
-    conn->dest_port = dst_port;
-    conn->next = map->conns;
-    map->conns = conn;
+  		//create new tcp connection
+    	conn = malloc(sizeof(sr_nat_connection_t));
+    	conn->dest_ip = ip_dst;
+    	conn->dest_port = dst_port;
+    	conn->next = map->conns;
+    	map->conns = conn;
 
-    //initialize connection state
-    if (incoming)
-    	init_incoming_tcp_state(conn,tcphdr);
-    else
-    	init_outgoing_tcp_state(conn,tcphdr);
+    	//initialize connection state
+    	if (incoming)
+    		init_incoming_tcp_state(conn,tcphdr);
+    	else
+    		init_outgoing_tcp_state(conn,tcphdr);
+    }
+
+    conn->last_updated = now;
 }
 
 
