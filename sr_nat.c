@@ -15,7 +15,7 @@
 uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload); //CLEANUP
 bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct sr_rt **best_match); //CLEANUP 
 
-#include "sr_nat_tcpstate.c"  //CLEANUP
+#include "sr_nat_tcp_state.c"  //CLEANUP
 #include "sr_nat_utils.c"
 #include "sr_nat_tcp.c"
 #include "sr_nat_icmp.c"
@@ -107,7 +107,7 @@ bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
           DebugNATTimeoutCondition(is_tcp_conn_transitory(curconn),"Transitory ");
           DebugNATTimeoutCondition(is_tcp_conn_established(curconn),"Established ");
           DebugNATTimeout("connection to ip [");
-          DebugNATTimeoutAddrIP(curconn->dest_ip);
+          DebugNATTimeoutAddrIP(ntohl(curconn->dest_ip));
           DebugNATTimeout("] and port [%d] timedout &&+++\n",ntohs(curconn->dest_port));
 
           if (prevconn != NULL)
@@ -146,7 +146,7 @@ void nat_timeout_mappings(struct sr_instance *sr, time_t curtime)
 
         //remove mapping
         DebugNATTimeout("+++&& removing mapping from aux [%d] to ip [",ntohs(curmap->aux_ext));
-        DebugNATAddrIP(ntohl(curmap->ip_int));
+        DebugNATTimeoutAddrIP(ntohl(curmap->ip_int));
         DebugNATTimeout("] and aux [%d] &&+++\n",ntohs(curmap->aux_int));
           
         if (prevmap != NULL)
