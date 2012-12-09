@@ -13,11 +13,13 @@
 #define DebugNATPacket(pkt) print_ip_full((uint8_t *)pkt)
 #define DebugNATAddrIP(ipaddr) print_addr_ip_int(ipaddr)
 #define DebugNATAction(action) print_nat_action(action)
+#define DebugNATCondition(cond, msg, args...) if(cond) fprintf(stderr, msg, ##args)
 #else
 #define DebugNAT(x, args...) do {} while(0)
 #define DebugNATPacket(pkt)  do {} while(0)
 #define DebugNATAddrIP(ipaddr) do {} while(0)
 #define DebugNATAction(action) do {} while(0)
+#define DebugNATCondition(cond, msg, args...) do {} while(0)
 #endif
 
 

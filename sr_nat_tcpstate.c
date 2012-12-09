@@ -38,9 +38,14 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 	//if state is now closed remove it
 }
 
-bool tcp_state_trasnitory(sr_nat_tcp_state state) 
+bool tcp_state_established(sr_nat_tcp_state state)
 {
 	return true;
+}
+
+bool tcp_state_trasnitory(sr_nat_tcp_state state) 
+{
+	return false;
 	
 	/*switch (state) {
 		case tcp_syn_recvd:
