@@ -122,16 +122,18 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_fin_wait1;
 				conn->fin_sent_seqno = seqno;
 				DebugTCPState(conn);
+			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_outgoing_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 
 		case tcp_state_fin_wait1:
-			break;
 		case tcp_state_fin_wait2:
-			break;
 		case tcp_state_closing:
-			break;
 		case tcp_state_time_wait:
+			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_outgoing_tcp_state(conn,tcphdr); //reset connection
+			}
 			break;
 
 		case tcp_state_close_wait:
@@ -139,10 +141,15 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_last_ack;
 				conn->fin_sent_seqno = seqno;
 				DebugTCPState(conn);
+			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_outgoing_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 		
 		case tcp_state_last_ack:
+			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_outgoing_tcp_state(conn,tcphdr); //reset connection
+			}
 			break;
 
 	}
@@ -189,6 +196,8 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_close_wait;
 				conn->fin_recv_seqno = seqno;
 				DebugTCPState(conn);
+			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 
@@ -201,6 +210,8 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			} else if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno)) {	//FIN
 				conn->state = tcp_state_fin_wait2;
 				DebugTCPState(conn);
+			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 
@@ -209,20 +220,25 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_time_wait;
 				conn->fin_recv_seqno = seqno;
 				DebugTCPState(conn);
+			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 
 		case tcp_state_closing:
 		case tcp_state_time_wait:
-			break;
-
 		case tcp_state_close_wait:
+			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_incoming_tcp_state(conn,tcphdr); //reset connection
+			}
 			break;
 
 		case tcp_state_last_ack:
 			if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno)) {
 				conn->state = tcp_state_time_wait;
 				DebugTCPState(conn);
+			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 	}
