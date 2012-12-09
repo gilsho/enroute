@@ -75,8 +75,8 @@ void init_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 		return;
 	}
 
-	DebugTCPState(conn);
 	conn->state = tcp_state_syn_recvd_processing;
+	DebugTCPState(conn);
 
 	conn->fin_sent_seqno = 0;
 	conn->fin_recv_seqno = 0;
@@ -90,8 +90,8 @@ void init_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 		return;	//be very strict in adhering to tcp state diagram
 	}
 
-	DebugTCPState(conn);
 	conn->state = tcp_state_syn_sent;
+	DebugTCPState(conn);
 	
 	conn->fin_sent_seqno = 0;
 	conn->fin_recv_seqno = 0;
@@ -108,6 +108,7 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			//SYN+ACK in response to received SYN
 			if (is_tcp_ack(tcphdr) && is_tcp_syn(tcphdr)) {
 				conn->state = tcp_state_syn_recvd;
+				DebugTCPState(conn);
 			}
 			break;
 		
@@ -120,6 +121,7 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_fin_wait1;
 				conn->fin_sent_seqno = seqno;
+				DebugTCPState(conn);
 			}
 			break;
 
@@ -136,6 +138,7 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_last_ack;
 				conn->fin_sent_seqno = seqno;
+				DebugTCPState(conn);
 			}
 			break;
 		
@@ -143,7 +146,6 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			break;
 
 	}
-	DebugTCPState(conn);
 
 }
 
@@ -163,6 +165,7 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				if (is_tcp_ack(tcphdr)) {
 					//SYN+ACK: end host acknowledged SYN sent plus sent his own SYN
 					conn->state = tcp_state_established;
+					DebugTCPState(conn);
 				} else {
 					//simultaneous open: SYN from destination host was sent
 					//prior to reception of SYN from host behind NAT
@@ -170,12 +173,14 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 					//re-sending SYN. no need to update connection structure.
 					//received an ack to either this or previously sent SYN would suffice
 					DebugTCPStatePrint("^^^^^ (simultaneous open) ^^^^^");
+					DebugTCPState(conn);
 				}
 			}
 			break;
 		case tcp_state_syn_recvd:
 			if (is_tcp_ack(tcphdr)) {
 				conn->state = tcp_state_established;
+				DebugTCPState(conn);
 			}
 			break;
 
@@ -183,6 +188,7 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_close_wait;
 				conn->fin_recv_seqno = seqno;
+				DebugTCPState(conn);
 			}
 			break;
 
@@ -190,9 +196,11 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) { //FIN+ACK or FIN
 				conn->state = tcp_state_time_wait;
 				conn->fin_recv_seqno = seqno;
+				DebugTCPState(conn);
 				//neglect intermediate transition to CLOSING if we get FIN+ACK
 			} else if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno)) {	//FIN
 				conn->state = tcp_state_fin_wait2;
+				DebugTCPState(conn);
 			}
 			break;
 
@@ -200,6 +208,7 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			if (is_tcp_fin(tcphdr)) {
 				conn->state = tcp_state_time_wait;
 				conn->fin_recv_seqno = seqno;
+				DebugTCPState(conn);
 			}
 			break;
 
@@ -211,10 +220,12 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			break;
 
 		case tcp_state_last_ack:
-			if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno))
+			if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno)) {
+				conn->state = tcp_state_time_wait;
+				DebugTCPState(conn);
+			}
 			break;
 	}
-	DebugTCPState(conn);
 	
 }
 
