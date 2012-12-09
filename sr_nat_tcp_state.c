@@ -20,7 +20,7 @@ void DebugTCPState(sr_nat_connection_t *conn)
 		case tcp_state_listen: 					fprintf(stderr,"LISTEN");						break;
 		case tcp_state_syn_recvd:				fprintf(stderr,"SYN RECEIVED");					break;
 		case tcp_state_syn_sent:				fprintf(stderr,"SYN SENT");						break;
-		case tcp_state_established:				fprintf(stderr,"ESTABLISHEED");					break;
+		case tcp_state_established:				fprintf(stderr,"ESTABLISHED");					break;
 		case tcp_state_fin_wait1:				fprintf(stderr,"FIN WAIT 1");					break;
 		case tcp_state_fin_wait2:				fprintf(stderr,"FIN WAIT 2");					break;
 		case tcp_state_closing:					fprintf(stderr,"CLOSING");						break;
@@ -103,10 +103,15 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 	//leave terminated connections in teardown state to be garbage collected
 	//by the timeout thread. (simulating timeout behavior)
 
+	if (is_tcp_rst(tcphdr)) {
+		conn->state = tcp_state_closed;
+		DebugTCPState(conn);
+	}
+
 	switch (conn->state) {
 		case tcp_state_closed:
-			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_outgoing_tcp_state(conn,tcphdr); //reset connection
+			if (is_tcp_syn(tcphdr)) {
+				init_outgoing_tcp_state(conn,tcphdr); 
 			}
 		case tcp_state_syn_recvd_processing:
 			//SYN+ACK in response to received SYN
@@ -126,8 +131,6 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_fin_wait1;
 				conn->fin_sent_seqno = seqno;
 				DebugTCPState(conn);
-			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_outgoing_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 
@@ -135,9 +138,6 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 		case tcp_state_fin_wait2:
 		case tcp_state_closing:
 		case tcp_state_time_wait:
-			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_outgoing_tcp_state(conn,tcphdr); //reset connection
-			}
 			break;
 
 		case tcp_state_close_wait:
@@ -145,15 +145,10 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_last_ack;
 				conn->fin_sent_seqno = seqno;
 				DebugTCPState(conn);
-			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_outgoing_tcp_state(conn,tcphdr); //reset connection
-			}
+			} 
 			break;
 		
 		case tcp_state_last_ack:
-			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_outgoing_tcp_state(conn,tcphdr); //reset connection
-			}
 			break;
 
 	}
@@ -167,9 +162,14 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 	//leave terminated connections in teardown state to be garbage collected
 	//by the timeout thread. (simulating timeout behavior)
 
+	if (is_tcp_rst(tcphdr)) {
+		conn->state = tcp_state_closed;
+		DebugTCPState(conn);
+	}
+
 	switch (conn->state) {
 		case tcp_state_closed:
-			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+			if (is_tcp_syn(tcphdr)) {
 				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 		case tcp_state_syn_recvd_processing:
@@ -204,9 +204,7 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_close_wait;
 				conn->fin_recv_seqno = seqno;
 				DebugTCPState(conn);
-			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_incoming_tcp_state(conn,tcphdr); //reset connection
-			}
+			} 
 			break;
 
 		case tcp_state_fin_wait1:
@@ -218,8 +216,6 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 			} else if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno)) {	//FIN
 				conn->state = tcp_state_fin_wait2;
 				DebugTCPState(conn);
-			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 
@@ -228,25 +224,18 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 				conn->state = tcp_state_time_wait;
 				conn->fin_recv_seqno = seqno;
 				DebugTCPState(conn);
-			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 
 		case tcp_state_closing:
 		case tcp_state_time_wait:
 		case tcp_state_close_wait:
-			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_incoming_tcp_state(conn,tcphdr); //reset connection
-			}
 			break;
 
 		case tcp_state_last_ack:
 			if (is_tcp_ack(tcphdr) && (ackno > conn->fin_sent_seqno)) {
 				conn->state = tcp_state_time_wait;
 				DebugTCPState(conn);
-			} else if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
-				init_incoming_tcp_state(conn,tcphdr); //reset connection
 			}
 			break;
 	}
