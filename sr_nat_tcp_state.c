@@ -86,7 +86,6 @@ void init_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 
 	if (is_tcp_syn(tcphdr)) {
 		conn->state = tcp_state_syn_sent;
-		DebugTCPState(conn);
 		conn->fin_sent_seqno = 0;
 		conn->fin_recv_seqno = 0;
 	} else {
@@ -105,6 +104,10 @@ void update_outgoing_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 	//by the timeout thread. (simulating timeout behavior)
 
 	switch (conn->state) {
+		case tcp_state_closed:
+			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_outgoing_tcp_state(conn,tcphdr); //reset connection
+			}
 		case tcp_state_syn_recvd_processing:
 			//SYN+ACK in response to received SYN
 			if (is_tcp_ack(tcphdr) && is_tcp_syn(tcphdr)) {
@@ -165,6 +168,10 @@ void update_incoming_tcp_state(sr_nat_connection_t *conn,sr_tcp_hdr_t *tcphdr)
 	//by the timeout thread. (simulating timeout behavior)
 
 	switch (conn->state) {
+		case tcp_state_closed:
+			if (is_tcp_syn(tcphdr) || is_tcp_rst(tcphdr)) {
+				init_incoming_tcp_state(conn,tcphdr); //reset connection
+			}
 		case tcp_state_syn_recvd_processing:
 			break;
 		case tcp_state_syn_sent:
