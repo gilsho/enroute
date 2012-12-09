@@ -311,6 +311,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   mapping->ip_ext = ext_iface->ip;
   mapping->aux_ext = rand_unused_aux(nat,type);
   mapping->last_updated = current_time();
+  mapping->conns = NULL;
 
   //insert to linked list
   mapping->next = nat->mappings;
