@@ -88,8 +88,22 @@ void update_tcp_connection(sr_nat_mapping_t *map,uint32_t ip_dst, uint16_t dst_p
   			} else {
   				update_outgoing_tcp_state(conn,tcphdr);
   			}
-  		}	
+  		}
+  		return;	
   	}
+
+  	//create new tcp connection
+    conn = malloc(sizeof(sr_nat_connection_t));
+    conn->dest_ip = ip_dst;
+    conn->dest_port = dst_port;
+    conn->next = map->conns;
+    map->conns = conn;
+
+    //initialize connection state
+    if (incoming)
+    	init_incoming_tcp_state(conn,tcphdr);
+    else
+    	init_outgoing_tcp_state(conn,tcphdr);
 }
 
 

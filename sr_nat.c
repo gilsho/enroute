@@ -99,13 +99,13 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
 bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
 {
   for (sr_nat_connection_t *prevconn = NULL, *curconn = map->conns; curconn != NULL;) {
-    if ((tcp_state_established(curconn->state) && (difftime(now, map->last_updated)) > nat->tcp_estab_timeout) ||
-        (tcp_state_trasnitory(curconn->state)  && (difftime(now, map->last_updated) > nat->tcp_trans_timeout))) {
+    if ((is_tcp_conn_established(curconn) && (difftime(now, map->last_updated)) > nat->tcp_estab_timeout) ||
+        (is_tcp_conn_transitory(curconn)  && (difftime(now, map->last_updated) > nat->tcp_trans_timeout))) {
           
 
           DebugNAT("+++&& ");
-          DebugNATCondition(tcp_state_trasnitory(curconn->state),"Transitory ");
-          DebugNATCondition(tcp_state_established(curconn->state),"Established ");
+          DebugNATCondition(is_tcp_conn_transitory(curconn),"Transitory ");
+          DebugNATCondition(is_tcp_conn_established(curconn),"Established ");
           DebugNAT("connection to ip [");
           DebugNATAddrIP(curconn->dest_ip);
           DebugNAT("] and port [%d] timedout &&+++\n",ntohs(curconn->dest_port));
@@ -311,17 +311,6 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   mapping->ip_ext = ext_iface->ip;
   mapping->aux_ext = rand_unused_aux(nat,type);
   mapping->last_updated = current_time();
-  if (type == nat_mapping_tcp) {
-    //create new connection
-    sr_nat_connection_t *conn = malloc(sizeof(sr_nat_connection_t));
-    conn->dest_ip = ip_dest;
-    conn->dest_port = aux_dest;
-    conn->state = tcp_closed;
-    conn->next = 0;
-    mapping->conns = conn;
-  } else {
-    mapping->conns = 0;
-  }
 
   //insert to linked list
   mapping->next = nat->mappings;

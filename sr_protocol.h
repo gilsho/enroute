@@ -79,7 +79,7 @@
 #define ICMP_DATA_SIZE 28
 
 
-/* TCP Header structure as per RFC 793
+/* TCP Header structure as speficied in RFC 793
    obtained from:  http://simplestcodings.blogspot.com/2010/10/tcp-header-format.html */
 struct sr_tcp_hdr {
  uint16_t th_sport;  /* source port */

@@ -46,17 +46,18 @@ typedef enum {
 } sr_nat_mapping_type;
 
 typedef enum {
-  tcp_closed,
-  tcp_listen,
-  tcp_syn_recvd,
-  tcp_syn_sent,
-  tcp_established,
-  tcp_fin_wait1,
-  tcp_fin_wait2,
-  tcp_closing,
-  tcp_close_wait,
-  tcp_last_ack,
-  tcp_time_wait
+  tcp_state_closed,
+  tcp_state_syn_recvd_processing,
+  tcp_state_listen,
+  tcp_state_syn_recvd,
+  tcp_state_syn_sent,
+  tcp_state_established,
+  tcp_state_fin_wait1,
+  tcp_state_fin_wait2,
+  tcp_state_closing,
+  tcp_state_close_wait,
+  tcp_state_last_ack,
+  tcp_state_time_wait
 } sr_nat_tcp_state;
 
 
@@ -73,6 +74,8 @@ struct sr_nat_connection {
   /* add TCP connection state data members here */
   uint32_t dest_ip;
   uint16_t dest_port;
+  uint32_t fin_sent_seqno;
+  uint32_t fin_recv_seqno;
   sr_nat_tcp_state state;
   struct sr_nat_connection *next;
 };
