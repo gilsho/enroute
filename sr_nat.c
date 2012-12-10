@@ -207,31 +207,32 @@ void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
 {
   struct sr_nat *nat = &sr->nat;
   for (sr_nat_pending_syn_t *prevsyn = NULL, *cursyn = nat->pending_syns; cursyn != NULL;) {
-    //check it enough time elapsed to generate response
-    if (difftime(curtime, cursyn->time_received) > UNSOLICITED_SYN_TIMEOUT)
-
-      //check if mapping already exists
+    
+    if (difftime(curtime, cursyn->time_received) > UNSOLICITED_SYN_TIMEOUT) {
+      //time is up. remove from list and potentially generate responts
+      DebugNATTimeout("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext));
       if (sr_nat_lookup_external(nat,cursyn->aux_ext,nat_mapping_tcp) == NULL) {
-
-        DebugNATTimeout("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext));
-        //send ICMP port unreachable
+        //mapping does not exist. send ICMP port unreachable
+        DebugNATTimeout("+++&& Generating ICMP port unreachable message &&+++\n");
         sr_if_t *iface = get_external_iface(sr);
         send_ICMP_port_unreachable(sr,cursyn->iphdr,iface);
-    
-        //free stored ip packet
-        free(cursyn->iphdr);
-
-        //remove entry from list
-        if (prevsyn != NULL)
-          prevsyn->next = cursyn->next;
-        else
-          nat->pending_syns = cursyn->next;
-
-        sr_nat_pending_syn_t *oldcur = cursyn;
-        cursyn = cursyn->next;
-        free(oldcur);
-        continue;
       }
+
+      //free stored ip packet
+      free(cursyn->iphdr);
+
+      //remove entry from list
+      if (prevsyn != NULL)
+        prevsyn->next = cursyn->next;
+      else
+        nat->pending_syns = cursyn->next;
+
+      sr_nat_pending_syn_t *oldcur = cursyn;
+      cursyn = cursyn->next;
+      free(oldcur);
+      continue;
+      
+    }
     prevsyn = cursyn;
     cursyn = cursyn->next;
   }
