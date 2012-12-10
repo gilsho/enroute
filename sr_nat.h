@@ -12,7 +12,17 @@
 #define DebugNAT(x, args...) fprintf(stderr, x, ## args)
 #define DebugNATAddrIP(ipaddr) print_addr_ip_int(ipaddr)
 #define DebugNATPacket(pkt) print_ip_full((uint8_t *)pkt)
-#define DebugNATAction(action) print_nat_action(action)
+#define DebugNATAction(action) switch(action) {
+    case nat_action_route:
+      fprintf(stderr," ROUTE");
+      break;
+    case nat_action_drop:
+      fprintf(stderr,"DROP");
+      break;
+    case nat_action_unrch:
+      fprintf(stderr,"UNREACHABLE");
+      break;
+  }
 #else
 #define DebugNAT(x, args...) 
 #define DebugNATAddrIP(ipaddr) 
@@ -35,6 +45,7 @@
 #define DEFAULT_ICMP_TIMEOUT (60)
 #define UNSOLICITED_SYN_TIMEOUT (6)
 
+
 typedef enum {
   nat_action_route,
   nat_action_unrch,
@@ -50,7 +61,7 @@ typedef enum {
 typedef enum {
   tcp_state_closed,
   tcp_state_syn_recvd_processing,
-  tcp_state_listen,
+  //tcp_state_listen,
   tcp_state_syn_recvd,
   tcp_state_syn_sent,
   tcp_state_established,
@@ -120,27 +131,23 @@ int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_e
 int   sr_nat_destroy(struct sr_nat *nat);  /* Destroys the nat (free memory) */
 void *sr_nat_timeout(void *nat_ptr);  /* Periodic Timout */
 
-/* Get the mapping associated with given external port.
-   You must free the returned structure if it is not NULL. */
-struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
-    uint16_t aux_ext, sr_nat_mapping_type type );
 
-/* Get the mapping associated with given internal (ip, port) pair.
-   You must free the returned structure if it is not NULL. */
-struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
-  uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type );
-
-/* Insert a new mapping into the nat's mapping table.
-   You must free the returned structure if it is not NULL. */
-struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
-  uint32_t ip_int, uint16_t aux_int, uint32_t ip_ext, uint16_t aux_ext,
-  sr_nat_mapping_type type );
-
-
-nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface); //CLEANUP
+nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface);
 
 void sr_nat_insert_pending_syn(struct sr_nat *nat, uint16_t aux_ext, sr_ip_hdr_t *iphdr); //CLEANUP
 
 void send_ICMP_port_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,sr_if_t *iface);
+
+struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
+  uint32_t ip_int, uint16_t aux_int, uint32_t ip_dest, uint16_t aux_dest,
+  sr_nat_mapping_type type );
+
+struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
+    uint16_t aux_ext, sr_nat_mapping_type type );
+
+struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
+  uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type);
+
+
 
 #endif

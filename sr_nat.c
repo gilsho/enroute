@@ -6,20 +6,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "sr_utils.h"
 #include "sr_protocol.h"
-#include "sr_router.h"
 #include "sr_if.h"
 #include "sr_rt.h"
 #include "sr_router.h"
+#include "sr_nat_tcp.h"
+#include "sr_nat.h"
+#include "sr_nat_icmp.h"
+#include "sr_nat_tcp.h"
 
 uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload); //CLEANUP
 bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct sr_rt **best_match); //CLEANUP 
-
-#include "sr_nat_tcp_state.c"  //CLEANUP
-#include "sr_nat_utils.c"
-#include "sr_nat_tcp.c"
-#include "sr_nat_icmp.c"
-
 
 
 int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
@@ -95,46 +93,57 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
 
 }
 
-
-bool nat_timeout_tcp(struct sr_nat *nat, sr_nat_mapping_t *map,time_t now)
-{
-  for (sr_nat_connection_t *prevconn = NULL, *curconn = map->conns; curconn != NULL;) {
-    if ((is_tcp_conn_established(curconn) && (difftime(now, curconn->last_updated)) > nat->tcp_estab_timeout) ||
-        (is_tcp_conn_transitory(curconn)  && (difftime(now, curconn->last_updated) > nat->tcp_trans_timeout))) {
-          
-
-          DebugNATTimeout("+++&& ");
-          DebugNATTimeoutCondition(is_tcp_conn_transitory(curconn),"Transitory ");
-          DebugNATTimeoutCondition(is_tcp_conn_established(curconn),"Established ");
-          DebugNATTimeout("connection to ip [");
-          DebugNATTimeoutAddrIP(ntohl(curconn->dest_ip));
-          DebugNATTimeout("] and port [%d] timedout &&+++\n",ntohs(curconn->dest_port));
-
-          if (prevconn != NULL)
-            prevconn->next = curconn->next;
-          else
-            map->conns = curconn->next;
-
-          sr_nat_connection_t *oldcur = curconn;
-          curconn = curconn->next;
-          free(oldcur);
-          continue;
-
-    }
-
-    prevconn = curconn;
-    curconn = curconn->next;
-  }
-
-  return (map->conns == NULL);
+/*---------------------------------------------------------------------
+ * Method: received_external
+ *
+ * Scope:  Local
+ *
+ *  returns true if the specified interface is an external interface
+ *  on the NAT. returns false otherwise
+ *
+ *  parameters:
+ *    nat       - a reference to the NAT structure
+ *    iface     - the interface to examine
+ *
+ *---------------------------------------------------------------------*/
+bool received_external(struct sr_nat *nat, sr_if_t *recv_iface) {
+    return (strcmp(recv_iface->name,nat->ext_iface_name) == 0);
 }
 
-bool nat_timeout_icmp(struct sr_nat *nat, sr_nat_mapping_t *map, time_t now)
-{
-  return (difftime(now,map->last_updated) > nat->icmp_query_timeout);
+/*---------------------------------------------------------------------
+ * Method: destined_to_nat
+ *
+ * Scope:  Local
+ *
+ * returns true if the destination IP address of a packet's  is that
+ * of the NAT itself (its external facing IP address)
+ *   
+ *  parameters:
+ *    sr         - a reference to the router structure
+ *    ip_dst     - the ip_dst of the received packet.
+ *
+ *---------------------------------------------------------------------*/
+bool destined_to_nat(struct sr_instance* sr, uint32_t ip_dst) {
+  sr_if_t *ext_iface = sr_get_interface(sr,sr->nat.ext_iface_name);
+  assert(ext_iface != NULL);
+    return (ip_dst == ext_iface->ip);
 }
 
-
+/*---------------------------------------------------------------------
+ * Method: nat_timeout_mappings
+ *
+ * Scope:  Local
+ *
+ * This function is a helper function for the connection garbage collector
+ * thread. It cycles through all active mappings in the NAT and releases
+ * them if they have been idle long enough. employs nat_timeout_icmp and
+ * nat_timeout_tcp to deal with icmp and tcp packets respectively.
+ *
+ *  parameters:
+ *    sr       - a reference to the router structure
+ *    curtime       - the current time.
+ *
+ *---------------------------------------------------------------------*/
 void nat_timeout_mappings(struct sr_instance *sr, time_t curtime)
 {
   struct sr_nat *nat = &sr->nat;
@@ -165,6 +174,21 @@ void nat_timeout_mappings(struct sr_instance *sr, time_t curtime)
 
 }
 
+/*---------------------------------------------------------------------
+ * Method: nat_timeout_pending_syns
+ *
+ * Scope:  Local
+ *
+ * This function is a helper function for the connection garbage collector
+ * thread. It cycles through the list of unsolicited syns received, and
+ * generates an ICMP host unreachable message if enough time has elapsed
+ * since each packet was received.
+ *
+ *  parameters:
+ *    sr       - a reference to the router structure
+ *    curtime       - the current time.
+ *
+ *---------------------------------------------------------------------*/
 void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
 {
   struct sr_nat *nat = &sr->nat;
@@ -252,12 +276,40 @@ time_t current_time(); //defined in sr_router_utils.c. CLEANUP
 #define MAX_AUX_VALUE 65355   //CLEANUP
 #define MIN_AUX_VALUE 1024    //CLEANUP
 
-uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
+/*---------------------------------------------------------------------
+ * Method: deterministic_unused_aux
+ *
+ * Scope:  Local
+ *
+ * This function generates an unused aux to be used by the NAT, in a 
+ * deterministic manner: starting at 1024, and incrementing the assigned
+ * port for each connection
+ * not mapped to any other hose
+ *
+ *  parameters:
+ *    nat       - a reference to the nat structure
+ *    type       - the type of packet: TCP/ICMP supported
+ *
+ *---------------------------------------------------------------------*/
+uint16_t deterministic_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
 {
   static uint16_t next_aux = 1024;
   return htons(next_aux++);
 }
 
+/*---------------------------------------------------------------------
+ * Method: rand_unused_aux
+ *
+ * Scope:  Local
+ *
+ * This function generates a random aux to be used by the NAT, that is 
+ * not mapped to any other hose
+ *
+ *  parameters:
+ *    nat       - a reference to the nat structure
+ *    type       - the type of packet: TCP/ICMP supported
+ *
+ *---------------------------------------------------------------------*/
 /*uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
 {
   while (true) {
@@ -276,8 +328,25 @@ uint16_t rand_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type)
 }*/
 
 
-//make a copy of the ip packet and put it in pending list
-void sr_nat_insert_pending_syn(struct sr_nat *nat, uint16_t aux_ext, sr_ip_hdr_t *iphdr) 
+/*---------------------------------------------------------------------
+ * Method: sr_nat_insert_pending_syn
+ *
+ * Scope:  Local
+ *
+ * This function inserts an IP packet containing an unsolicited SYN TCP
+ * segment to the linked list of unsolicited SYN's pending a response.
+ * the function performs a copy of the packet so the caller function
+ * can free the memory 
+ *
+ *  parameters:
+ *    nat           - a reference to the nat structure
+ *    aux_ext       - the external port through which the packet was received
+ *                    this value will be used to generate a port unreachable 
+ *                    ICMP message
+ *    iphdr         - a pointer to the packet containg the unsolicited SYN
+ *
+ *---------------------------------------------------------------------*/
+ void sr_nat_insert_pending_syn(struct sr_nat *nat, uint16_t aux_ext, sr_ip_hdr_t *iphdr) 
 {
   unsigned int iplen = ntohs(iphdr->ip_len);
   sr_nat_pending_syn_t *psyn = malloc(sizeof(sr_nat_pending_syn_t));
@@ -309,7 +378,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   mapping->ip_int = ip_int;
   mapping->aux_int = aux_int;
   mapping->ip_ext = ext_iface->ip;
-  mapping->aux_ext = rand_unused_aux(nat,type);
+  mapping->aux_ext = deterministic_unused_aux(nat,type);
   mapping->last_updated = current_time();
   mapping->conns = NULL;
 
@@ -320,6 +389,22 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
   return mapping;
 }
 
+/*---------------------------------------------------------------------
+ * Method: do_nat_interal
+ *
+ * Scope:  Local
+ *
+ * This function performs the decision logic for packets arriving on an
+ * internal interface. it determines if the NAT has to process the packet
+ * and create a mapping, or simply let the router route or process the
+ * packet as usual.
+ *
+ *  parameters:
+ *    sr          - a reference to the router structure
+ *    iphdr       - a pointer to the packet received
+ *    iface       - the interface through which the packet was received  
+ *
+ *---------------------------------------------------------------------*/
 nat_action_type do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 { 
   DebugNAT("+++ Applying internal NAT interface logic +++\n");
@@ -356,6 +441,23 @@ nat_action_type do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_i
        
 }
 
+/*---------------------------------------------------------------------
+ * Method: do_nat_interal
+ *
+ * Scope:  Local
+ *
+ * This function performs the decision logic for packets arriving on an
+ * external interface. it determines if the NAT has should translate the
+ * packet and route it to the internal interface, whether it should drop
+ * the packet, or whether it should let the router route the packet or
+ * process it as usual
+ *
+ *  parameters:
+ *    sr          - a reference to the router structure
+ *    iphdr       - a pointer to the packet received
+ *    iface       - the interface through which the packet was received  
+ *
+ *---------------------------------------------------------------------*/
 nat_action_type do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 {
   DebugNAT("+++ Applying external NAT interface logic +++\n");
@@ -391,23 +493,29 @@ nat_action_type do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_i
                             //access hosts behind the NAT directly
 }
 
-void print_nat_action(nat_action_type action) 
-{
-  switch(action) {
-    case nat_action_route:
-      fprintf(stderr," ROUTE");
-      break;
-    case nat_action_drop:
-      fprintf(stderr,"DROP");
-      break;
-    case nat_action_unrch:
-      fprintf(stderr,"UNREACHABLE");
-      break;
-  }
 
-}
 
-//return true if router needs to process packet after function returns
+
+/*---------------------------------------------------------------------
+ * Method: do_nat
+ *
+ * Scope:  Global
+ *
+ * This function provides the interface to the router. once a packet is
+ * received the router should call this function, passing in the ip
+ * packet received and the interface through which it was. This function,
+ * using all helper functions declared in this module and others, will 
+ * handle all necessary mappings, translations, bookeepings, and so forth.
+ * It will return the required action to take back to the router in the form
+ * of a 'nat_action_type', which could be one of: route, drop, send hsot 
+ * unreachable.
+ *
+ *  parameters:
+ *    sr          - a reference to the router structure
+ *    iphdr       - a pointer to the packet received
+ *    iface       - the interface through which the packet was received  
+ *
+ *---------------------------------------------------------------------*/
 nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface) {
 
 

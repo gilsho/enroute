@@ -3,6 +3,8 @@
 #include <string.h>
 #include "sr_protocol.h"
 #include "sr_utils.h"
+#include <stdlib.h>
+#include <time.h>
 
 
 uint16_t cksum (const void *_data, int len) {
@@ -19,6 +21,43 @@ uint16_t cksum (const void *_data, int len) {
   return sum ? sum : 0xffff;
 }
 
+/*---------------------------------------------------------------------
+ * Method: extract_ip_payload
+
+ * Scope:  Global
+ *
+ * returns a pointer to the payload of an ip header, along with the payloads
+ * length (optional).
+ * parameters:
+ *    iphdr     - the iphdr whose payload is desired
+ *    len     - the length of the ip header as read from input stream.
+ *            this is needed to ensure the payload is valid.
+ *    len_payload - an integer passed by reference, which if not null, will
+ *            be filled with the length of the payload
+ * returns:
+ *    a pointer to the  payload within the ip packet.
+ *---------------------------------------------------------------------*/
+uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload)
+{
+  if (len_payload != 0) {
+    *len_payload = len - sizeof(sr_ip_hdr_t);
+  }
+  return ((uint8_t *)iphdr+ sizeof(sr_ip_hdr_t));
+}
+
+/*---------------------------------------------------------------------
+ * Method: current_time
+ * Scope:  Private
+ *
+ * returns the current time of day in a 'time_t' struct.    
+ *
+ *---------------------------------------------------------------------*/
+time_t current_time() 
+{
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC,&ts);
+  return ts.tv_sec;
+}
 
 uint16_t ethertype(uint8_t *buf) {
   sr_ethernet_hdr_t *ehdr = (sr_ethernet_hdr_t *)buf;
@@ -227,29 +266,6 @@ void print_hdr_tcp(uint8_t *buf) {
   fprintf(stderr, "\n");
   fprintf(stderr, "\twindow: %d\n", tcphdr->th_win);
   fprintf(stderr, "\tchecksum: %d\n", tcphdr->th_sum);
-}
-
-
-void str_addr_ip_int(uint32_t ip, char * ipstr) {
-  char str[MAX_IP_LENGTH];
-  for (int i=0; i<MAX_IP_LENGTH; i++)
-    str[i] = '\0';
-  
-  char *buf = str;
-  uint32_t curOctet = ip >> 24;
-  fprintf(buf, "%d.", curOctet);
-
-  buf = buf + strlen(str);
-  curOctet = (ip << 8) >> 24;
-  fprintf(stderr, "%d.", curOctet);
-
-  buf = buf + strlen(str);
-  curOctet = (ip << 16) >> 24;
-  fprintf(stderr, "%d.", curOctet);
-
-  buf = buf + strlen(str);
-  curOctet = (ip << 24) >> 24;
-  fprintf(stderr, "%d\n", curOctet);
 }
 
 void print_ip_full(uint8_t *buf) 

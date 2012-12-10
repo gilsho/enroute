@@ -28,9 +28,16 @@
 #ifndef SR_UTILS_H
 #define SR_UTILS_H
 
+#include "sr_protocol.h"
+#include <sys/types.h>
+#include <arpa/inet.h>
+
  #define MAX_IP_LENGTH 20
 
 uint16_t cksum(const void *_data, int len);
+
+time_t current_time();
+uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload);
 
 uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);
@@ -38,7 +45,6 @@ uint8_t ip_protocol(uint8_t *buf);
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);
 void print_addr_ip_int(uint32_t ip);
-void str_addr_ip_int(uint32_t ip, char * ipstr);
 
 void print_hdr_eth(uint8_t *buf);
 void print_hdr_ip(uint8_t *buf);
