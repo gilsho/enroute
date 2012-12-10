@@ -16,12 +16,8 @@
 #include "sr_nat_icmp.h"
 #include "sr_nat_tcp.h"
 
-uint8_t * extract_ip_payload(sr_ip_hdr_t *iphdr,unsigned int len,unsigned int *len_payload); //CLEANUP
-bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct sr_rt **best_match); //CLEANUP 
-
-
 int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
-                  time_t tcp_trans_timeout,char *ext_iface_name) {
+                  time_t tcp_trans_timeout,char *int_iface_name) {
 
   assert(sr);
   struct sr_nat *nat = &sr->nat;
@@ -47,7 +43,7 @@ int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_e
 
   /* Initialize any variables here */
 
-  nat->ext_iface_name = ext_iface_name;
+  nat->int_iface_name = int_iface_name;
   nat->icmp_query_timeout = icmp_query_timeout;
   nat->tcp_estab_timeout = tcp_estab_timeout;
   nat->tcp_trans_timeout = tcp_trans_timeout;
@@ -106,12 +102,12 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
  *    iface     - the interface to examine
  *
  *---------------------------------------------------------------------*/
-bool received_external(struct sr_nat *nat, sr_if_t *recv_iface) {
-    return (strcmp(recv_iface->name,nat->ext_iface_name) == 0);
+bool received_internal(struct sr_nat *nat, sr_if_t *recv_iface) {
+    return (strcmp(recv_iface->name,nat->int_iface_name) == 0);
 }
 
 /*---------------------------------------------------------------------
- * Method: destined_to_nat
+ * Method: destined_to_nat_external
  *
  * Scope:  Local
  *
@@ -123,11 +119,29 @@ bool received_external(struct sr_nat *nat, sr_if_t *recv_iface) {
  *    ip_dst     - the ip_dst of the received packet.
  *
  *---------------------------------------------------------------------*/
-bool destined_to_nat(struct sr_instance* sr, uint32_t ip_dst) {
-  sr_if_t *ext_iface = sr_get_interface(sr,sr->nat.ext_iface_name);
-  assert(ext_iface != NULL);
-    return (ip_dst == ext_iface->ip);
+bool destined_to_nat_external(struct sr_instance* sr, uint32_t ip_dst) {
+  
+  sr_if_t *int_iface = sr_get_interface(sr,sr->nat.int_iface_name);
+  for (sr_if_t *iface = sr->if_list; iface != NULL; iface = iface->next) {
+    if (iface == int_iface)
+      continue;
+    if (ip_dst == iface->ip)
+      return true;
+  }
+  return false;
 }
+
+
+sr_if_t *get_external_iface(struct sr_instance *sr) 
+{
+  sr_if_t *int_iface = sr_get_interface(sr,sr->nat.int_iface_name);
+  for (sr_if_t *iface = sr->if_list; iface != NULL; iface = iface->next) {
+    if (iface != int_iface)
+      return iface;
+  }
+  return NULL;
+}
+
 
 /*---------------------------------------------------------------------
  * Method: nat_timeout_mappings
@@ -201,7 +215,7 @@ void nat_timeout_pending_syns(struct sr_instance *sr, time_t curtime)
 
         DebugNATTimeout("+++&& Unsolicited SYN to port: [%d] timed out &&+++\n",ntohs(cursyn->aux_ext));
         //send ICMP port unreachable
-        sr_if_t *iface = sr_get_interface(sr,nat->ext_iface_name);
+        sr_if_t *iface = get_external_iface(sr);
         send_ICMP_port_unreachable(sr,cursyn->iphdr,iface);
     
         //free stored ip packet
@@ -269,13 +283,6 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
 
 }
 
-
-time_t current_time(); //defined in sr_router_utils.c. CLEANUP
-
-
-#define MAX_AUX_VALUE 65355   //CLEANUP
-#define MIN_AUX_VALUE 1024    //CLEANUP
-
 /*---------------------------------------------------------------------
  * Method: deterministic_unused_aux
  *
@@ -293,7 +300,7 @@ time_t current_time(); //defined in sr_router_utils.c. CLEANUP
  *---------------------------------------------------------------------*/
 uint16_t deterministic_unused_aux(struct sr_nat *nat, sr_nat_mapping_type type) 
 {
-  static uint16_t next_aux = 1024;
+  static uint16_t next_aux = MIN_AUX_VALUE;
   return htons(next_aux++);
 }
 
@@ -369,8 +376,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
 
   /* handle insert here, create a mapping, and then return a copy of it */
   struct sr_nat *nat = &sr->nat;
-  sr_if_t *ext_iface = sr_get_interface(sr,nat->ext_iface_name);
-  assert(ext_iface != NULL);
+  sr_if_t *ext_iface = get_external_iface(sr);
 
   //create new mapping
   sr_nat_mapping_t *mapping = malloc(sizeof(sr_nat_mapping_t));
@@ -408,7 +414,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_instance *sr,
 nat_action_type do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 { 
   DebugNAT("+++ Applying internal NAT interface logic +++\n");
-  if (destined_to_nat(sr,iphdr->ip_dst)) {
+  if (destined_to_nat_external(sr,iphdr->ip_dst)) {
     //hairpinning not supported
     DebugNAT("+++ Potential hairpinning detected. assuming NAT is final destination. +++\n");
     return nat_action_route;
@@ -461,7 +467,7 @@ nat_action_type do_nat_internal(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_i
 nat_action_type do_nat_external(struct sr_instance *sr, sr_ip_hdr_t *iphdr, sr_if_t *iface) 
 {
   DebugNAT("+++ Applying external NAT interface logic +++\n");
-  if (destined_to_nat(sr,iphdr->ip_dst)) {
+  if (destined_to_nat_external(sr,iphdr->ip_dst)) {
     DebugNAT("+++ Inbound packet destined to NAT. handling... +++\n");
     //destined to nat and/or private network behind it
     if (iphdr->ip_p == ip_protocol_icmp) //ICMP
@@ -532,12 +538,12 @@ nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *ifac
   pthread_mutex_lock(&(nat->lock));
   nat_action_type natact = nat_action_route;
 
-  if (received_external(nat,iface) ) {
-    //received on external interface
-    natact = do_nat_external(sr,iphdr,iface);
-  } else {
+  if (received_internal(nat,iface) ) {
     //received on internal interface
     natact = do_nat_internal(sr,iphdr,iface);
+  } else {
+    //received on external interface
+    natact = do_nat_external(sr,iphdr,iface);
   }
 
   //recompute checksum to account for changes made

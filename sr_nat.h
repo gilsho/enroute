@@ -48,6 +48,9 @@
 #define DEFAULT_ICMP_TIMEOUT (60)
 #define UNSOLICITED_SYN_TIMEOUT (6)
 
+#define MAX_AUX_VALUE 65355
+#define MIN_AUX_VALUE 1024    
+
 
 typedef enum {
   nat_action_route,
@@ -113,7 +116,7 @@ typedef struct sr_nat_mapping sr_nat_mapping_t;
 typedef struct sr_nat {
   /* add any fields here */
   struct sr_nat_mapping *mappings;
-  char *ext_iface_name;
+  char *int_iface_name;
   sr_nat_pending_syn_t *pending_syns;
 
   /* threading */
@@ -130,14 +133,14 @@ typedef struct sr_nat {
 
 
 int   sr_nat_init(struct sr_instance *sr,time_t icmp_query_timeout, time_t tcp_estab_timeout, 
-                  time_t tcp_trans_timeout,char *ext_iface_name);     /* Initializes the nat */
+                  time_t tcp_trans_timeout,char *int_iface_name);     /* Initializes the nat */
 int   sr_nat_destroy(struct sr_nat *nat);  /* Destroys the nat (free memory) */
 void *sr_nat_timeout(void *nat_ptr);  /* Periodic Timout */
 
 
 nat_action_type do_nat(struct sr_instance *sr, sr_ip_hdr_t* iphdr, sr_if_t *iface);
 
-void sr_nat_insert_pending_syn(struct sr_nat *nat, uint16_t aux_ext, sr_ip_hdr_t *iphdr); //CLEANUP
+void sr_nat_insert_pending_syn(struct sr_nat *nat, uint16_t aux_ext, sr_ip_hdr_t *iphdr);
 
 void send_ICMP_port_unreachable(struct sr_instance *sr,sr_ip_hdr_t *recv_iphdr,sr_if_t *iface);
 

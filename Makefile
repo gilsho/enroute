@@ -32,7 +32,7 @@ ARCH = -D_DARWIN_
 SOCK = -lresolv
 endif
 
-CFLAGS = -g -Wall -std=gnu99 -D_DEBUG_NAT_ -D_DEBUG_NAT_TIMEOUT -D_DEBUG_NAT_TCP_STATE_ -D_GNU_SOURCE $(ARCH)
+CFLAGS = -g -Wall -std=gnu99 -D_DEBUG_NAT_ -D_DEBUG_NAT_TIMEOUT_ -D_DEBUG_NAT_TCP_STATE_ -D_GNU_SOURCE $(ARCH)
 
 LIBS= $(SOCK) -lm -lpthread -lrt
 PFLAGS= -follow-child-processes=yes -cache-dir=/tmp/${USER} 

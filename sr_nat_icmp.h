@@ -2,10 +2,9 @@
 #ifndef SR_NAT_ICMP_H
 #define SR_NAT_ICMP_H
 
+#include "sr_utils.h"
 #include "sr_router.h"
 #include "sr_nat.h"
-
-time_t current_time(); //defined in sr_router_utils.c. CLEANUP
 
 
 bool nat_timeout_icmp(struct sr_nat *nat, sr_nat_mapping_t *map, time_t now);

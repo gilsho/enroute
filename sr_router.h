@@ -74,6 +74,8 @@ void sr_init(struct sr_instance* sr, char * external_iface_name, bool nat_enable
             time_t icmp_query_timeout,time_t tcp_estab_timeout, time_t tcp_trans_timeout);
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 void handle_arpreq(struct sr_instance *sr, sr_arpreq_t *arpreq);
+bool longest_prefix_match(struct sr_rt* routing_table, uint32_t lookup, struct sr_rt **best_match); 
+
 
 /* -- sr_if.c -- */
 void sr_add_interface(struct sr_instance* , const char* );
