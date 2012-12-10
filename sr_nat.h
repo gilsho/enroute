@@ -32,6 +32,7 @@
 #define DebugNATAction(action) 
 #endif
 
+
 #ifdef _DEBUG_NAT_TIMEOUT_
 #define DebugNATTimeout(x, args...) fprintf(stderr, x, ## args)
 #define DebugNATTimeoutAddrIP(ipaddr) print_addr_ip_int(ipaddr)
