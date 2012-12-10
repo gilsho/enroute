@@ -12,17 +12,19 @@
 #define DebugNAT(x, args...) fprintf(stderr, x, ## args)
 #define DebugNATAddrIP(ipaddr) print_addr_ip_int(ipaddr)
 #define DebugNATPacket(pkt) print_ip_full((uint8_t *)pkt)
-#define DebugNATAction(action) switch(action) {
-    case nat_action_route:
-      fprintf(stderr," ROUTE");
-      break;
-    case nat_action_drop:
-      fprintf(stderr,"DROP");
-      break;
-    case nat_action_unrch:
-      fprintf(stderr,"UNREACHABLE");
-      break;
-  }
+#define DebugNATAction(action) do {\
+  switch(action) {\
+    case nat_action_route:\
+      fprintf(stderr," ROUTE");\
+      break;\
+    case nat_action_drop:\
+      fprintf(stderr,"DROP");\
+      break;\
+    case nat_action_unrch:\
+      fprintf(stderr,"UNREACHABLE");\
+      break;\
+  }\
+} while(0)
 #else
 #define DebugNAT(x, args...) 
 #define DebugNATAddrIP(ipaddr) 
