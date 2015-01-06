@@ -1,13 +1,3 @@
-/*-----------------------------------------------------------------------------
- * file:  sr_if.h
- * date:  Sun Oct 06 14:13:13 PDT 2002 
- * Contact: casado@stanford.edu 
- *
- * Description:
- *
- * Data structures and methods for handeling interfaces
- *
- *---------------------------------------------------------------------------*/
 
 #ifndef sr_INTERFACE_H
 #define sr_INTERFACE_H
