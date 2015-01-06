@@ -1,13 +1,3 @@
-/*-----------------------------------------------------------------------------
- * file:  sr_inface.
- * date:  Sun Oct 06 14:13:13 PDT 2002 
- * Contact: casado@stanford.edu 
- *
- * Description:
- *
- * Data structures and methods for handling interfaces
- *
- *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <assert.h>
