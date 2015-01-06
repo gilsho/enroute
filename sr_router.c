@@ -1,15 +1,3 @@
-/**********************************************************************
- * file:  sr_router.c
- * date:  Mon Feb 18 12:50:42 PST 2002
- * Contact: casado@stanford.edu
- *
- * Description:
- *
- * This file contains all the functions that interact directly
- * with the routing table, as well as the main entry method
- * for routing.
- *
- **********************************************************************/
 
 #include <stdio.h>
 #include <assert.h>
