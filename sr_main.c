@@ -1,17 +1,3 @@
-/*-----------------------------------------------------------------------------
- * File: sr_main.c
- * Date: Fall 2009
- * Authors: Guido Apanzeller, Vikram Vijayaraghaven, Martin Casado
- * Contact: dgu@cs.stanford.edu
- *
- * Based on many generations of sr clients including the original c client
- * and bert.
- *
- * Description:
- *
- * Driver file for sr
- *
- *---------------------------------------------------------------------------*/
 
 #ifdef _SOLARIS_
 #define __EXTENSIONS__
