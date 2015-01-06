@@ -1,19 +1,1 @@
-CS 144
-Lab 5
-Gil Shotan
-
-The key idea behind my implementation of lab5 is to abstract away the entire NAT functionality from the router. The interface betweeen the two module is straight forward: when the router receives an IP packet he passes it along to the 'do_nat' function, and receives an enum_type representing the appropriate action to take: either to route the packet normally, to drop the packet, or to generate an ICMP error message. Additionally, the 'do_nat' function takes a pointer to the actual IP packet, allowing 'do_nat' to translate the packet if necessary, in a manner which is completely transparent to the router. The advantage of this approach is that the two modules are almost completely decoupled, and this allowed me to easily ensure the existing functionality of lab 3. However, this approach also involves some duplicity in the code. For example, the NAT needs to look up the routing table to see if the packet is destined to cross the NAT. For this assignment the penalty for doing so is small.
-
-Another important design choice I made was to caquire the lock at the beginning of my NAT functionality - in 'do_nat' - and release it at the end of my NAT functionality - in 'do_nat' as well. This approach released me from worrying about concurrency issue at a fine scale. For example, If I had only acquired the lock before accessing a mapping entry, then retrieving a connection from a mapping entry, or updating the mapping would require acquiring the lock individiually, leaving many opportunities for unhandled cases. The drawback to my coarse grained locking, of course, is that my NAT logic holds the lock even when it doesn't really need to. This will also potentially starve the timeout thread. Of course, since we don't really care if the timeout thread is starved, since it doesn't matter if the connection and/or mapping will be destroyed in 2 hours and 4 minutes, or 2 hours. 4 minutes and 2 seconds, we can be confident that such an approach won't hurt our performance.
-
-Thirdly, My implementation breaks down the TCP functionality and ICMP functionality into separate modules. ICMP functionality can be found in "sr_nat_icmp.h" and "sr_nat_icmp.c", and tcp functionality can be found in "sr_nat_tcp.h", "sr_nat_tcp.c", "sr_nat_tcp_state.h" and "sr_nat_tcp_state.c". The main nat module "sr_nat.c" delegates the protocol specific tasks of updating a mapping entry, translating a packet, and timing out a mapping to the respective modules. This allowed me to separate the protocol-specific implementation while still combining mutual behvaior in the main NAT module. Furthermore, the tcp state machine is handled in 1 module "sr_nat_state.c". The file contains two big methods, which I knowingly left so because I thought the reader would prefer to see the entire state transition model in one place.
-
-To test my implementation I coded up some tests in test_nat.c. But since very little could be so decomposed in this lab, I also relied on significant logging, generating Wireshark pcap files for various scenarios. I also made heavy use of the '--local-port' option in 'curl' to force it to bind to a specific destination port. This allowed me to verify correct functionality for handling uncolicited SYN's, for multiple connections using one mapping,  and generating ICMP port unreachable when the solicited syns time out.
-I also included a picture 'diagram.jpg' to demonstrate the logic in my design.
-
-All in all it was a good lab, and this has been a great (yet sleepless) quarter.
-
-Thank you!
-
-Gil.
 
