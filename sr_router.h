@@ -1,10 +1,3 @@
-/*-----------------------------------------------------------------------------
- * File: sr_router.h
- * Date: ?
- * Authors: Guido Apenzeller, Martin Casado, Virkam V.
- * Contact: casado@stanford.edu
- *
- *---------------------------------------------------------------------------*/
 
 #ifndef SR_ROUTER_H
 #define SR_ROUTER_H
